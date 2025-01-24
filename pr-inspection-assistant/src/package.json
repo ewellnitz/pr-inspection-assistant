@@ -4,17 +4,20 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "package": "npm run build && cd ../ && tfx extension create --manifest-globs vss-extension.json"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@azure/openai": "^2.0.0",
     "@dqbd/tiktoken": "^1.0.7",
     "azure-devops-extension-sdk": "^4.0.2",
     "azure-pipelines-task-lib": "^4.7.0",
     "gpt-tokenizer": "^2.1.2",
-    "openai": "^4.20.1",
+    "openai": "^4.80.0",
     "simple-git": "^3.21.0"
   },
   "devDependencies": {
