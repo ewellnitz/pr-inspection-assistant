@@ -1,12 +1,17 @@
 import tl = require('azure-pipelines-task-lib/task');
 import { encode } from 'gpt-tokenizer';
-import OpenAI from "openai";
+import { OpenAI, AzureOpenAI } from "openai";
+
+type Client = OpenAI | AzureOpenAI;
 
 export class ChatGPT {
     private readonly systemMessage: string = '';
     private readonly maxTokens: number = 128000;
+    private _client: Client;
 
-    constructor(private _openAi: OpenAI, checkForBugs: boolean = false, checkForPerformance: boolean = false, checkForBestPractices: boolean = false, modifiedLinesOnly: boolean = true, additionalPrompts: string[] = []) {
+    constructor(client: Client, checkForBugs: boolean = false, checkForPerformance: boolean = false, checkForBestPractices: boolean = false, modifiedLinesOnly: boolean = true, additionalPrompts: string[] = []) {
+        this._client = client; // Assign to private field
+        
         this.systemMessage = `Your task is to act as a code reviewer of a pull request within Azure DevOps.
         - You are provided with the code changes (diff) in a Unified Diff format.
         - You are provided with a file path (fileName).
@@ -21,22 +26,41 @@ export class ChatGPT {
         this.systemMessage += `The response should be a single JSON object (without fenced codeblock) and it must use this sample JSON format:
         {
             "threads": [
+                // Use multiple, separate thread objects for distinct comments at different locations. Line and offset references should be as specific as possible.
                 {
                     "comments": [
                         {
-                            "content": "put comment here in markdown format without markdown fenced codeblock. Be as specific to the location within the file as possible.",
+                            "content": "<Comment in markdown format without markdown fenced codeblock>",
                             "commentType": 2
                         }
                     ],
                     "status": 1,
                     "threadContext": {
-                        "filePath": "fileName"
+                        "filePath": "<string>", //path to file
+                        //only include leftFile properties for suggestions on unmodified lines
+                        "leftFileStart": {
+                            "line": <integer>, //line where the suggestion starts
+                            "offset": <integer>, //character offset where the suggestion starts
+                        },
+                        "leftFileEnd": {
+                            "line": <integer>, //line where the suggestion ends
+                            "offset": <integer>, //character offset where the suggestion ends
+                        },
+                        //only use rightFile properties if the line changed in the diff
+                        "rightFileStart": {
+                            "line": <integer>, //line where the suggestion starts
+                            "offset": <integer>, //character offset where the suggestion starts
+                        },
+                        "rightFileEnd": {
+                            "line": <integer>, //line where the suggestion ends
+                            "offset": <integer>, //character offset where the suggestion ends
+                        }
                     },
                     "pullRequestThreadContext": {
-                        "changeTrackingId": 1,
+                        "changeTrackingId": <integer>, //Used to track a comment across iterations. Can be found by looking at the iteration changes list
                         "iterationContext": {
-                            "firstComparingIteration": 1,
-                            "secondComparingIteration": 2
+                            "firstComparingIteration": <integer>, //iteration of the file on the left side of the diff when the thread was created
+                            "secondComparingIteration": <integer> //iteration of the file on the right side of the diff when the thread was created
                         }
                     }
                 }
@@ -68,7 +92,7 @@ export class ChatGPT {
         // console.info(`Diff:\n${diff}`);
         // console.info(`Prompt:\n${prompt}`);
         if (!this.doesMessageExceedTokenLimit(this.systemMessage + prompt, this.maxTokens)) {
-            let openAi = await this._openAi.chat.completions.create({
+            let openAi = await this._client.chat.completions.create({
                 messages: [
                     {
                         role: model == 'o1-preview' || model == "o1-mini" ? 'assistant' : 'system',

@@ -1,5 +1,5 @@
 import tl = require('azure-pipelines-task-lib/task');
-import { OpenAI } from 'openai';
+import { OpenAI, AzureOpenAI } from "openai";
 import { ChatGPT } from './chatgpt';
 import { Repository } from './repository';
 import { PullRequest } from './pullrequest';
@@ -22,6 +22,9 @@ export class Main {
 
         // Get the input values
         const apiKey = tl.getInput('api_key', true)!;
+        const azureApiEndpoint = tl.getInput('api_endpoint', false)!;
+        const azureApiVersion = tl.getInput('api_version', false)!;
+        const azureModelDeployment = tl.getInput('ai_model', false)!;
         const fileExtensions = tl.getInput('file_extensions', false);
         const filesToExclude = tl.getInput('file_excludes', false);
         const additionalPrompts = tl.getInput('additional_prompts', false)?.split(',');
@@ -37,8 +40,14 @@ export class Main {
         console.info(`performance: ${performance}`);
         console.info(`best_practices: ${bestPractices}`);
         console.info(`modified_lines_only: ${modifiedLinesOnly}`);
+        console.info(`azureApiEndpoint: ${azureApiEndpoint}`);
+        console.info(`azureModelDeployment: ${azureModelDeployment}`);
         
-        this._chatGpt = new ChatGPT(new OpenAI({ apiKey: apiKey }), bugs, performance, bestPractices, modifiedLinesOnly, additionalPrompts);
+        const client = azureApiEndpoint ? new AzureOpenAI({ apiKey: apiKey, endpoint: azureApiEndpoint, apiVersion: azureApiVersion, deployment: azureModelDeployment }) : new OpenAI({ apiKey: apiKey });
+
+        // const client = new AzureOpenAI({ apiKey: apiKey, endpoint: azureApiEndpoint, baseURL: `${azureApiEndpoint}/openai/`, apiVersion: azureApiVersion, deployment: azureModelDeployment });
+        
+        this._chatGpt = new ChatGPT(client, bugs, performance, bestPractices, modifiedLinesOnly, additionalPrompts);
         this._repository = new Repository();
         this._pullRequest = new PullRequest();
         let filesToReview = await this._repository.GetChangedFiles(fileExtensions, filesToExclude);

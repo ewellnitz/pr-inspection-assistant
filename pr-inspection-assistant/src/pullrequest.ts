@@ -18,11 +18,12 @@ export class PullRequest {
 
     public async AddThread(thread: any): Promise<boolean> {
         let endpoint = `${this._collectionUri}${this._teamProjectId}/_apis/git/repositories/${this._repositoryName}/pullRequests/${this._pullRequestId}/threads?api-version=7.0`
+        let threadBody = JSON.stringify(thread);
 
         var response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${tl.getVariable('SYSTEM.ACCESSTOKEN')}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(thread),
+            body: threadBody,
             agent: this._httpsAgent
         });
 
@@ -31,7 +32,8 @@ export class PullRequest {
                 tl.setResult(tl.TaskResult.Failed, "The Build Service must have 'Contribute to pull requests' access to the repository. See https://stackoverflow.com/a/57985733 for more information");
             }
 
-            tl.warning(response.statusText)
+            tl.warning(`${response.status}: ${response.statusText}`);
+            tl.warning(`POSTed Body: ${threadBody}`)
         }
 
         return response.ok;
