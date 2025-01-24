@@ -1,16 +1,16 @@
 {
     "manifestVersion": 1,
-    "id": "pria-azure",
-    "version": "1.0.12",
-    "name": "PR Inspection Assistant for Azure OpenAI",
-    "publisher": "JustinPitcher",
-    "public": false,
+    "id": "pria",
+    "version": "2.1.0",
+    "name": "PR Inspection Assistant",
+    "publisher": "EricWellnitz",
+    "public": true,
     "targets": [
         {
             "id": "Microsoft.VisualStudio.Services"
         }
     ],
-    "description": "Based on PRIA from Eric Wellnitz. Automate pull request reviews in Azure DevOps using OpenAI or Azure OpenAI.",
+    "description": "Automate pull request reviews in Azure DevOps using OpenAI or Azure OpenAI APIs. This bot analyzes code changes, offers suggestions, detects potential bugs, and ensures adherence to coding standards.",
     "categories": [
         "Azure Pipelines"
     ],
@@ -30,7 +30,7 @@
         "AI"
     ],
     "icons": {
-        "default": "assets/logo_az.png"
+        "default": "assets/logo.png"
     },
     "branding": {
         "color": "rgb(138, 43, 226)",
@@ -38,13 +38,13 @@
     },
     "links": {
         "support": {
-            "uri": "https://github.com/justinpitcher/pr-inspection-assistant",
+            "uri": "https://github.com/ewellnitz/pr-inspection-assistant",
             "version": "1.0.0"
         }
     },
     "repository": {
         "type": "git",
-        "uri": "https://github.com/justinpitcher/pr-inspection-assistant"
+        "uri": "https://github.com/ewellnitz/pr-inspection-assistant"
     },
     "screenshots": [
     ],
