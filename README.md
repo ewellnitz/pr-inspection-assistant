@@ -65,8 +65,9 @@ Automate pull request (PR) reviews in Azure DevOps using the PR Inspection Assis
 
 1. Install [Prequisites](https://learn.microsoft.com/en-us/azure/devops/extend/develop/add-build-task?toc=%2Fazure%2Fdevops%2Fmarketplace-extensibility%2Ftoc.json&view=azure-devops#prerequisites)
 2. Run `npm install -g typescript` to install TypeScript
-3. Run `tsc.cmd` from `.\pr-inspection-assistant\src\` to build the solution
-4. Run `tfx extension create --manifest-globs vss-extension.json` from `.\pr-inspection-assistant\` to package the solution
+3. Run npm install -g tfx-cli to install tfx
+4. Run `tsc.cmd` from `.\pr-inspection-assistant\src\` to build the solution
+5. Run `tfx extension create --manifest-globs vss-extension.json` from `.\pr-inspection-assistant\` to package the solution
 
 ### Resources
 - [Marketplace Pipeline Extension](https://learn.microsoft.com/en-us/azure/devops/extend/develop/add-build-task?toc=%2Fazure%2Fdevops%2Fmarketplace-extensibility%2Ftoc.json&view=azure-devops)
