@@ -1,7 +1,7 @@
 {
     "manifestVersion": 1,
     "id": "pria",
-    "version": "2.0.14",
+    "version": "2.1.0",
     "name": "PR Inspection Assistant",
     "publisher": "EricWellnitz",
     "public": true,
@@ -10,7 +10,7 @@
             "id": "Microsoft.VisualStudio.Services"
         }
     ],
-    "description": "Automate pull request reviews in Azure DevOps using OpenAI. This bot analyzes code changes, offers suggestions, detects potential bugs, and ensures adherence to coding standards.",
+    "description": "Automate pull request reviews in Azure DevOps using OpenAI or Azure OpenAI APIs. This bot analyzes code changes, offers suggestions, detects potential bugs, and ensures adherence to coding standards.",
     "categories": [
         "Azure Pipelines"
     ],

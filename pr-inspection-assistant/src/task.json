@@ -3,28 +3,44 @@
     "id": "d3b07384-d9a7-4f3b-8a1d-6e5f3d2b5c3a",
     "name": "PRIA",
     "friendlyName": "PR Inspection Assistant",
-    "description": "Complete a Code Review using Open AI",
+    "description": "Complete a Code Review using OpenAI",
     "category": "Utility",
     "author": "Eric Wellnitz",
     "version": {
         "Major": 2,
-        "Minor": 0,
-        "Patch": 14
+        "Minor": 1,
+        "Patch": 0
     },
     "instanceNameFormat": "PRIA $(message)",
     "inputs": [
         {
             "name": "api_key",
             "type": "string",
-            "label": "Open AI API Key",
+            "label": "OpenAI API Key",
             "defaultValue": "",
             "required": true,
-            "helpMarkDown": "API Key for Open AI API. "
+            "helpMarkDown": "API Key for OpenAI API or Azure OpenAI endpoint."
+        },
+        {
+            "name": "api_version",
+            "type": "string",
+            "label": "Azure OpenAI API Version",
+            "defaultValue": "",
+            "required": false,
+            "helpMarkDown": "Azure OpenAI API Version. e.g., '2024-10-21'. See https://learn.microsoft.com/en-us/azure/ai-services/openai/api-version-deprecation."
+        },
+        {
+            "name": "api_endpoint",
+            "type": "string",
+            "label": "Azure OpenAI Service Endpoint",
+            "defaultValue": "",
+            "required": false,
+            "helpMarkDown": "Endpoint of Azure OpenAI Service. e.g., 'https://my-foundry-project.openai.azure.com/'"
         },
         {
             "name": "ai_model",
             "type": "pickList",
-            "label": "Open AI API Model",
+            "label": "OpenAI API Model",
             "defaultValue": "o1-mini",
             "options": {
                 "o1-mini": "o1-mini",
@@ -33,20 +49,20 @@
                 "gpt-4": "gpt-4",
                 "gpt-3.5-turbo": "gpt-3.5-turbo"
             },
-            "helpMarkDown": "## OpenAI API Model Configuration\n\n### Description\nChoose the Open AI API model for code analysis. The selected model determines the depth and capabilities of the code review performed by Open AI.\n\n### Options\n- **gpt-4-1106-preview:** Preview version of GPT-4 released on June 11, 202x.\n- **gpt-4-vision-preview:** Preview version of GPT-4 with enhanced vision capabilities.\n- **gpt-4:** Latest stable release of GPT-4.\n- **gpt-4-0314:** GPT-4 version released on March 14, 202x.\n- **gpt-4-0613:** GPT-4 version released on June 13, 202x.\n- **gpt-4-32k:** GPT-4 version with a 32k parameter size.\n- **gpt-4-32k-0314:** GPT-4 version with 32k parameters, released on March 14, 202x.\n- **gpt-4-32k-0613:** GPT-4 version with 32k parameters, released on June 13, 202x.\n- **gpt-3.5-turbo-1106:** Preview version of GPT-3.5 Turbo released on November 6, 202x.\n- **gpt-3.5-turbo:** Latest stable release of GPT-3.5 Turbo.\n- **gpt-3.5-turbo-16k:** GPT-3.5 Turbo version with a 16k parameter size.\n- **gpt-3.5-turbo-0301:** GPT-3.5 Turbo version released on March 1, 202x.\n- **gpt-3.5-turbo-0613:** GPT-3.5 Turbo version released on June 13, 202x.\n- **gpt-3.5-turbo-16k-0613:** GPT-3.5 Turbo version with 16k parameters, released on June 13, 202x.\n\n### Default Value\nThe default Open AI API model is set to **gpt-3.5-turbo**.\n\n Choose the model that best suits your code review requirements."
+            "helpMarkDown": "## OpenAI API Model Configuration\n\n### Description\nChoose the OpenAI API model for code analysis. The selected model determines the depth and capabilities of the code review performed by OpenAI. If using Azure OpenAI services, this identifies the deployment.\n\n### Options\n- **gpt-4-1106-preview:** Preview version of GPT-4 released on June 11, 202x.\n- **gpt-4-vision-preview:** Preview version of GPT-4 with enhanced vision capabilities.\n- **gpt-4:** Latest stable release of GPT-4.\n- **gpt-4-0314:** GPT-4 version released on March 14, 202x.\n- **gpt-4-0613:** GPT-4 version released on June 13, 202x.\n- **gpt-4-32k:** GPT-4 version with a 32k parameter size.\n- **gpt-4-32k-0314:** GPT-4 version with 32k parameters, released on March 14, 202x.\n- **gpt-4-32k-0613:** GPT-4 version with 32k parameters, released on June 13, 202x.\n- **gpt-3.5-turbo-1106:** Preview version of GPT-3.5 Turbo released on November 6, 202x.\n- **gpt-3.5-turbo:** Latest stable release of GPT-3.5 Turbo.\n- **gpt-3.5-turbo-16k:** GPT-3.5 Turbo version with a 16k parameter size.\n- **gpt-3.5-turbo-0301:** GPT-3.5 Turbo version released on March 1, 202x.\n- **gpt-3.5-turbo-0613:** GPT-3.5 Turbo version released on June 13, 202x.\n- **gpt-3.5-turbo-16k-0613:** GPT-3.5 Turbo version with 16k parameters, released on June 13, 202x.\n\n### Default Value\nThe default OpenAI API model is set to **gpt-3.5-turbo**.\n\n Choose the model that best suits your code review requirements."
         },
         {
             "name": "bugs",
             "type": "boolean",
             "label": "Check for bugs",
-            "defaultValue": true,
+            "defaultValue": false,
             "helpMarkDown": "Specify whether to enable bug checking during the code review process.\n\n- Set to `true` to perform bug checks.\n- Set to `false` to skip bug checks.\n\nBug checking helps identify and address potential issues in the code. Default value is `true`."
         },
         {
             "name": "performance",
             "type": "boolean",
             "label": "Check for performance problems",
-            "defaultValue": true,
+            "defaultValue": false,
             "helpMarkDown": "Specify whether to include performance checks during the code review process.\n\n- Set to `true` to perform performance checks.\n- Set to `false` to skip performance checks.\n\nEnabling performance checks helps identify and address potential performance-related issues in the code. Default value is `true`."
         },
         {
@@ -85,7 +101,7 @@
             "label": "Additional Prompts",
             "defaultValue": "",
             "required": false,
-            "helpMarkDown": "Specify additional Open AI prompts as a comma-separated list to enhance the code review process.\n\n- Add multiple prompts separated by commas.\n- These prompts will be used in conjunction with the main code review prompts.\n\n**Example:**\n```plaintext\nFix variable naming, Ensure consistent indentation, Review error handling approach\n```"
+            "helpMarkDown": "Specify additional OpenAI prompts as a comma-separated list to enhance the code review process.\n\n- Add multiple prompts separated by commas.\n- These prompts will be used in conjunction with the main code review prompts.\n\n**Example:**\n```plaintext\nFix variable naming, Ensure consistent indentation, Review error handling approach\n```"
         }
     ],
     "execution": {
