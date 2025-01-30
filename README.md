@@ -114,8 +114,8 @@ Additional input options can be set to tailor how the code is reviewed.
 
 1. Install [Prequisites](https://learn.microsoft.com/en-us/azure/devops/extend/develop/add-build-task?toc=%2Fazure%2Fdevops%2Fmarketplace-extensibility%2Ftoc.json&view=azure-devops#prerequisites)
 2. Run `npm install -g typescript` to install TypeScript
-3. Install dependencies and build extension
-
+3. Run `npm install -g tfx-cli` to install tfx
+4. Install dependencies and build extension
 ```bash
 # Navigate to src and install
 $ cd pr-inspection-assistant/src

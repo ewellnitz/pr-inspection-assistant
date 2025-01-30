@@ -137,7 +137,15 @@ export class PullRequest {
         const threads = await this.GetThreads();
         const comments: string[] = [];
 
+        console.info(`fileName: ${fileName}`);
+        console.info(`collectionName: ${collectionName}`);
+        console.info(`buildServiceName: ${buildServiceName}`);
+        console.info(`thread count: ${threads.length}`);
+
+
         for (let thread of threads as any[]) {
+            if (thread.threadContext)
+                console.info(`Thread filePath: ${thread.threadContext.filePath}`);
             if (thread.threadContext && thread.threadContext.filePath === fileName) {
                 const threadComments = await this.GetComments(thread);
                 for (let comment of threadComments.value.filter((comment: any) => comment.author.displayName === buildServiceName) as any[]) {
