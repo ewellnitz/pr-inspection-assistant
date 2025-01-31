@@ -24,6 +24,8 @@
     "@types/mocha": "^10.0.6",
     "@types/node": "^22.7.2",
     "@types/q": "^1.5.8",
-    "sync-request": "^6.1.0"
+    "sync-request": "^6.1.0",
+    "tfx-cli": "^0.18.0",
+    "typescript": "^5.7.3"
   }
 }
