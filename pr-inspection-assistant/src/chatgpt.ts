@@ -1,4 +1,4 @@
-import tl = require('azure-pipelines-task-lib/task');
+import tl from './taskWrapper';
 import { encode } from 'gpt-tokenizer';
 import { OpenAI, AzureOpenAI } from "openai";
 
@@ -56,13 +56,14 @@ export class ChatGPT {
                             "offset": <integer>, //character offset where the suggestion ends
                         }
                     },
-                    "pullRequestThreadContext": {
-                        "changeTrackingId": <integer>, //Used to track a comment across iterations. Can be found by looking at the iteration changes list
-                        "iterationContext": {
-                            "firstComparingIteration": <integer>, //iteration of the file on the left side of the diff when the thread was created
-                            "secondComparingIteration": <integer> //iteration of the file on the right side of the diff when the thread was created
-                        }
-                    }
+                    // Commenting out these for now as they're not working correctly and causes comments to be added to wrong files
+                    // "pullRequestThreadContext": {
+                    //     "changeTrackingId": <integer>, //Used to track a comment across iterations. Can be found by looking at the iteration changes list
+                    //     "iterationContext": {
+                    //         "firstComparingIteration": <integer>, //iteration of the file on the left side of the diff when the thread was created
+                    //         "secondComparingIteration": <integer> //iteration of the file on the right side of the diff when the thread was created
+                    //     }
+                    // }
                 }
             ]
         }`
