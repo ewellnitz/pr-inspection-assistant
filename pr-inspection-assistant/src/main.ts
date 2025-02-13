@@ -1,4 +1,4 @@
-import tl = require('azure-pipelines-task-lib/task');
+import tl from './taskWrapper';
 import { OpenAI, AzureOpenAI } from "openai";
 import { ChatGPT } from './chatgpt';
 import { Repository } from './repository';
@@ -52,6 +52,7 @@ export class Main {
         this._pullRequest = new PullRequest();
         let filesToReview = await this._repository.GetChangedFiles(fileExtensions, filesToExclude);
 
+        console.info(`filesToReview: `, filesToReview);
         tl.setProgress(0, 'Performing Code Review');
 
         for (let index = 0; index < filesToReview.length; index++) {

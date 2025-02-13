@@ -6,6 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
+    "dev": "tsc && dotenvx run -f .env.local -- cross-env DEV_MODE=true npx ts-node main.ts",
+    "dev2": "npx ts-node main.ts",
     "package": "npm run build && cd ../ && tfx extension create --manifest-globs vss-extension.json"
   },
   "keywords": [],
@@ -21,11 +23,14 @@
     "simple-git": "^3.21.0"
   },
   "devDependencies": {
+    "@dotenvx/dotenvx": "^1.36.0",
     "@types/mocha": "^10.0.6",
     "@types/node": "^22.7.2",
     "@types/q": "^1.5.8",
+    "cross-env": "^7.0.3",
     "sync-request": "^6.1.0",
     "tfx-cli": "^0.18.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5.7.3"
   }
 }

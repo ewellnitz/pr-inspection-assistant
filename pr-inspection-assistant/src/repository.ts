@@ -1,4 +1,4 @@
-import * as tl from "azure-pipelines-task-lib/task";
+import tl from './taskWrapper';
 import { SimpleGit, SimpleGitOptions, simpleGit } from "simple-git";
 import binaryExtensions from "./binaryExtensions.json";
 
@@ -21,6 +21,9 @@ export class Repository {
         await this._repository.fetch();
 
         let targetBranch = this.GetTargetBranch();
+
+        console.info(`target branch: ${targetBranch}`);
+        console.info(`current branch: `, (await this._repository.branch()).current);
 
         let diffs = await this._repository.diff([targetBranch, '--name-only', '--diff-filter=AM']);
         let files = diffs.split('\n').filter(line => line.trim().length > 0);
@@ -58,6 +61,7 @@ export class Repository {
             throw new Error(`Could not find target branch`)
         }
 
-        return `origin/${targetBranchName}`;
+        const includeOriginPrefix = tl.getVariable('TargetBranch_IncludeOriginPrefix') !== 'false';
+        return`${includeOriginPrefix ? 'origin/' : ''}${targetBranchName}`;
     }
 }

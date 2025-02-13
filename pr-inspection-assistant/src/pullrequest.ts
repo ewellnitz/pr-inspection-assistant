@@ -1,4 +1,4 @@
-import * as tl from "azure-pipelines-task-lib/task";
+import tl from './taskWrapper';
 import { Agent } from "https";
 import fetch from 'node-fetch';
 
@@ -19,6 +19,8 @@ export class PullRequest {
     public async AddThread(thread: any): Promise<boolean> {
         let endpoint = `${this._collectionUri}${this._teamProjectId}/_apis/git/repositories/${this._repositoryName}/pullRequests/${this._pullRequestId}/threads?api-version=7.0`
         let threadBody = JSON.stringify(thread);
+
+        tl.isVerboseLoggingEnabled() && console.info(`POSTing to ${endpoint} with threadBody:\n${threadBody}`);
 
         var response = await fetch(endpoint, {
             method: 'POST',
@@ -145,7 +147,7 @@ export class PullRequest {
 
         for (let thread of threads as any[]) {
             if (thread.threadContext)
-                console.info(`Thread filePath: ${thread.threadContext.filePath}`);
+                tl.isVerboseLoggingEnabled() && console.info(`Thread filePath: ${thread.threadContext.filePath}`);
             if (thread.threadContext && thread.threadContext.filePath === fileName) {
                 const threadComments = await this.GetComments(thread);
                 //TODO: this filter is not working in all envrionments
