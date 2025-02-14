@@ -123,6 +123,32 @@ $ npm install
 $ npm run package
 ```
 
+## Local Development Testing
+This is a work in progress.  
+
+1. Copy `.env.local.example` to `.env.local` and fill in the values
+2. On your target git repo for review (specified by `System_DefaultWorkingDirectory` in `.env.local`), set your current branch to the desired pull request in Azure Devops.
+```bash
+# Fetch the refspec for the pull requests
+git fetch --force --tags --prune --prune-tags --progress --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/pull/<your_pr_id>/merge:refs/remotes/pull/<your_pr_id>/merge
+
+# Set current branch to PR branch
+git checkout pull/<your_pr_id>/merge
+```
+3. Compare file diffs to make sure it's the same as what is reported in Azure Devops for the PR
+```bash
+git diff --name-only origin/master
+```
+
+If the files are different, you may need to run the Azure Devops Pipeline for the Pull Request so that its PR branch is up-to-date w/ latest master/main branch.  Then re-run step 2 and 3.
+
+4. After determining file diff matches Azure Devops PR, in `.env.local`, set `TargetBranch_IncludeOriginPrefix` to false.  This is so that the file diffs won't change on us (because our target branch will be our local master) while we're testing, which could be caused by new pushes to origin/master.
+
+5. Run the task locally
+```bash
+npm run dev
+```
+
 ### Resources
 - [Marketplace Pipeline Extension](https://learn.microsoft.com/en-us/azure/devops/extend/develop/add-build-task?toc=%2Fazure%2Fdevops%2Fmarketplace-extensibility%2Ftoc.json&view=azure-devops)
 - [Publisher Portal](https://marketplace.visualstudio.com/manage/publishers)

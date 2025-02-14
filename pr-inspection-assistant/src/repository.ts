@@ -17,6 +17,22 @@ export class Repository {
         this._repository.addConfig('core.quotepath', 'false');
     }
 
+    public async SetupCurrentBranch(): Promise<void> {        
+        // Currently, this is only needed for dev mode.  The Azure DevOps pipeline will automatically checkout the PR branch in its build step
+        if (tl.isDev() && tl.getVariable('Auto_Setup_PR_Branch') === 'true') {
+            const pullRequestBranch = `pull/${tl.getVariable('System_PullRequest_PullRequestId')}/merge`;
+            console.info(`Updating PR branch: ${pullRequestBranch}`);
+            
+            // Update the local repository with the latest refspec from the remote repository
+            await this._repository.fetch('origin', '+refs/pull/*/merge:refs/remotes/pull/*/merge');
+            await this._repository.checkout(pullRequestBranch);
+
+            const currentBranch = (await this._repository.branch()).current;
+            console.info(`Current branch set to: `, currentBranch);
+            // TODO: check to see if the file diffs are the same as that of ADO PR.  If not, throw an error
+        }
+    }
+
     public async GetChangedFiles(fileExtensions: string | undefined, filesToExclude: string | undefined): Promise<string[]> {
         await this._repository.fetch();
 

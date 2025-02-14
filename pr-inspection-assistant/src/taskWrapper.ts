@@ -1,8 +1,9 @@
 import * as tl from 'azure-pipelines-task-lib/task';
 
-const isDev = () => process.env.DEV_MODE === 'true';
-const envVar = (name:string) => process.env[name.replaceAll('.', '_')];
+export const isDev = () => process.env.Dev_Mode === 'true';
 export const isVerboseLoggingEnabled = () => _getInput('verbose_logging', false) === 'true';
+
+const envVar = (name:string) => process.env[name.replaceAll('.', '_')];
 
 console.info('isDev: ', isDev());
 console.info('verboseLogging: ', isVerboseLoggingEnabled());
@@ -43,5 +44,6 @@ export default {
     getVariable,
     getInput,
     getBoolInput,
-    isVerboseLoggingEnabled
+    isVerboseLoggingEnabled,
+    isDev
 };
