@@ -6,8 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-    "dev": "tsc && dotenvx run -f .env.local -- cross-env DEV_MODE=true npx ts-node main.ts",
-    "dev2": "npx ts-node main.ts",
+    "dev": "tsc && dotenvx run -f .env.local -- npx ts-node main.ts",
     "package": "npm run build && cd ../ && tfx extension create --manifest-globs vss-extension.json"
   },
   "keywords": [],

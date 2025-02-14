@@ -50,6 +50,8 @@ export class Main {
         this._chatGpt = new ChatGPT(client, bugs, performance, bestPractices, modifiedLinesOnly, additionalPrompts);
         this._repository = new Repository();
         this._pullRequest = new PullRequest();
+
+        await this._repository.SetupCurrentBranch();
         let filesToReview = await this._repository.GetChangedFiles(fileExtensions, filesToExclude);
 
         console.info(`filesToReview: `, filesToReview);
