@@ -1,6 +1,8 @@
 import tl from './taskWrapper';
 import { encode } from 'gpt-tokenizer';
 import { OpenAI, AzureOpenAI } from "openai";
+import parseGitDiff, { AddedLine, AnyChunk, AnyLineChange, DeletedLine, GitDiff, UnchangedLine } from 'parse-git-diff';
+import { CommentLineNumberAndOffsetFixer } from './commentLineNumberAndOffsetFixer';
 
 type Client = OpenAI | AzureOpenAI;
 
@@ -8,9 +10,13 @@ export class ChatGPT {
     private readonly systemMessage: string = '';
     private readonly maxTokens: number = 128000;
     private _client: Client;
+    private _enableCommentLineCorrection: boolean = false;
+    private _commentLineNumberAndOffsetFixer: CommentLineNumberAndOffsetFixer;
 
-    constructor(client: Client, checkForBugs: boolean = false, checkForPerformance: boolean = false, checkForBestPractices: boolean = false, modifiedLinesOnly: boolean = true, additionalPrompts: string[] = []) {
+    constructor(client: Client, checkForBugs: boolean = false, checkForPerformance: boolean = false, checkForBestPractices: boolean = false, modifiedLinesOnly: boolean = true, enableCommentLineCorrection = false, additionalPrompts: string[] = []) {
         this._client = client; // Assign to private field
+        this._enableCommentLineCorrection = enableCommentLineCorrection;
+        this._commentLineNumberAndOffsetFixer = new CommentLineNumberAndOffsetFixer();
         
         this.systemMessage = `Your task is to act as a code reviewer of a pull request within Azure DevOps.
         - You are provided with the code changes (diff) in a Unified Diff format.
@@ -41,6 +47,7 @@ export class ChatGPT {
                         "leftFileStart": {
                             "line": <integer>, //line where the suggestion starts
                             "offset": <integer>, //character offset where the suggestion starts
+                            "snippet": "<code snippet for suggestion>"
                         },
                         "leftFileEnd": {
                             "line": <integer>, //line where the suggestion ends
@@ -49,6 +56,7 @@ export class ChatGPT {
                         //only use rightFile properties if the line changed in the diff
                         "rightFileStart": {
                             "line": <integer>, //line where the suggestion starts
+                            "snippet": "<code snippet for suggestion>",
                             "offset": <integer>, //character offset where the suggestion starts
                         },
                         "rightFileEnd": {
@@ -72,6 +80,13 @@ export class ChatGPT {
     }
 
     public async PerformCodeReview(diff: string, fileName: string, existingComments: string[]): Promise<any> {
+        const review = await this.sendRequest(diff, fileName, existingComments);
+
+        this._enableCommentLineCorrection && this._commentLineNumberAndOffsetFixer.fix(review, diff);
+        return review;
+    }
+
+    private async sendRequest(diff: string, fileName: string, existingComments: string[]): Promise<any> {
         if (!fileName.startsWith('/')) {
             fileName = `/${fileName}`;
         }

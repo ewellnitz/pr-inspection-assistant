@@ -19,6 +19,7 @@
     "azure-pipelines-task-lib": "^4.7.0",
     "gpt-tokenizer": "^2.1.2",
     "openai": "^4.80.0",
+    "parse-git-diff": "^0.0.17",
     "simple-git": "^3.21.0"
   },
   "devDependencies": {
