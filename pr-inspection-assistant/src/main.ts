@@ -3,6 +3,7 @@ import { OpenAI, AzureOpenAI } from "openai";
 import { ChatGPT } from './chatgpt';
 import { Repository } from './repository';
 import { PullRequest } from './pullrequest';
+import parseGitDiff, { AddedLine, AnyChunk, AnyLineChange, Chunk, DeletedLine, GitDiff, UnchangedLine } from 'parse-git-diff';
 
 export class Main {
     private static _chatGpt: ChatGPT;
@@ -32,6 +33,7 @@ export class Main {
         const performance = tl.getBoolInput('performance', false);
         const bestPractices = tl.getBoolInput('best_practices', false);
         const modifiedLinesOnly = tl.getBoolInput('modified_lines_only', false);
+        const enableCommentLineCorrection = tl.getBoolInput('comment_line_correction', false);
 
         console.info(`file_extensions: ${fileExtensions}`);
         console.info(`file_excludes: ${filesToExclude}`);
@@ -42,12 +44,13 @@ export class Main {
         console.info(`modified_lines_only: ${modifiedLinesOnly}`);
         console.info(`azureApiEndpoint: ${azureApiEndpoint}`);
         console.info(`azureModelDeployment: ${azureModelDeployment}`);
+        console.info(`enableCommentLineCorrection: ${enableCommentLineCorrection}`);
         
         const client = azureApiEndpoint ? new AzureOpenAI({ apiKey: apiKey, endpoint: azureApiEndpoint, apiVersion: azureApiVersion, deployment: azureModelDeployment }) : new OpenAI({ apiKey: apiKey });
 
         // const client = new AzureOpenAI({ apiKey: apiKey, endpoint: azureApiEndpoint, baseURL: `${azureApiEndpoint}/openai/`, apiVersion: azureApiVersion, deployment: azureModelDeployment });
         
-        this._chatGpt = new ChatGPT(client, bugs, performance, bestPractices, modifiedLinesOnly, additionalPrompts);
+        this._chatGpt = new ChatGPT(client, bugs, performance, bestPractices, modifiedLinesOnly, enableCommentLineCorrection, additionalPrompts);
         this._repository = new Repository();
         this._pullRequest = new PullRequest();
 
