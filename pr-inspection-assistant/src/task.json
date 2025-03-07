@@ -9,7 +9,7 @@
     "version": {
         "Major": 2,
         "Minor": 1,
-        "Patch": 10
+        "Patch": 11
     },
     "instanceNameFormat": "PRIA $(message)",
     "inputs": [
@@ -82,10 +82,18 @@
         {
             "name": "file_extensions",
             "type": "string",
-            "label": "File Extensions",
+            "label": "File extensions to include",
             "defaultValue": "",
             "required": false,
             "helpMarkDown": "Specify a comma-separated list of file extensions for which you want to perform a code review. This input helps narrow down the scope of the code review to specific file types.\n\n**Example:**\n```plaintext\n\".js,.ts,.css,.html\"\n```\n\nMake sure to provide the file extensions without spaces after the commas."
+        },
+        {
+            "name": "file_extension_excludes",
+            "type": "string",
+            "label": "File extensions to exclude",
+            "defaultValue": "",
+            "required": false,
+            "helpMarkDown": "Specify a comma-separated list of file extensions that should be excluded from code reviews.\n\n**Example:**\n```plaintext\n\".js,.ts,.css,.html\"\n```\n\nMake sure to provide the file extensions without spaces after the commas."
         },
         {
             "name": "file_excludes",

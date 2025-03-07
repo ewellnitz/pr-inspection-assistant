@@ -17,7 +17,7 @@ export class CommentLineNumberAndOffsetFixer {
             return;
         }
 
-        console.info(`Fixing comment line numbers for review with ${review.threads.length} threads. Diff content:`, diff);
+        console.info(`Fixing comment line numbers for review with ${review.threads.length} threads.`);
         const parsedDiff = parseGitDiff(diff);
 
         for (const thread of review.threads) {
