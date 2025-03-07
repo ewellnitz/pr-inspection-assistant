@@ -33,7 +33,7 @@ export class Repository {
         }
     }
 
-    public async GetChangedFiles(fileExtensions: string | undefined, filesToExclude: string | undefined): Promise<string[]> {
+    public async GetChangedFiles({ fileExtensions, fileExtensionExcludes, filesToExclude }: { fileExtensions: string | undefined; fileExtensionExcludes: string | undefined, filesToExclude: string | undefined; }): Promise<string[]> {
         await this._repository.fetch();
 
         let targetBranch = this.GetTargetBranch();
@@ -48,6 +48,11 @@ export class Repository {
         if(fileExtensions) {
             let fileExtensionsToInclude = fileExtensions.trim().split(',');
             filesToReview = filesToReview.filter(file => fileExtensionsToInclude.includes(file.substring(file.lastIndexOf('.'))));
+        }
+
+        if(fileExtensionExcludes) {
+            let fileExtensionsToExclude = fileExtensionExcludes.trim().split(',');
+            filesToReview = filesToReview.filter(file => !fileExtensionsToExclude.includes(file.substring(file.lastIndexOf('.'))));
         }
 
         if(filesToExclude) {

@@ -105,7 +105,7 @@ export class ChatGPT {
 
         let prompt = JSON.stringify(userPrompt, null, 4);
         console.info(`Model: ${model}`);
-        // console.info(`Diff:\n${diff}`);
+        console.info(`Diff:\n${diff}`);
         // console.info(`Prompt:\n${prompt}`);
         if (!this.doesMessageExceedTokenLimit(this.systemMessage + prompt, this.maxTokens)) {
             let openAi = await this._client.chat.completions.create({

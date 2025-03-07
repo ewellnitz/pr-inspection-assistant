@@ -27,6 +27,7 @@ export class Main {
         const azureApiVersion = tl.getInput('api_version', false)!;
         const azureModelDeployment = tl.getInput('ai_model', false)!;
         const fileExtensions = tl.getInput('file_extensions', false);
+        const fileExtensionExcludes = tl.getInput('file_extension_excludes', false);
         const filesToExclude = tl.getInput('file_excludes', false);
         const additionalPrompts = tl.getInput('additional_prompts', false)?.split(',');
         const bugs = tl.getBoolInput('bugs', false);
@@ -36,6 +37,7 @@ export class Main {
         const enableCommentLineCorrection = tl.getBoolInput('comment_line_correction', false);
 
         console.info(`file_extensions: ${fileExtensions}`);
+        console.info(`file_extension_excludes: ${fileExtensionExcludes}`);
         console.info(`file_excludes: ${filesToExclude}`);
         console.info(`additional_prompts: ${additionalPrompts}`);
         console.info(`bugs: ${bugs}`);
@@ -55,7 +57,7 @@ export class Main {
         this._pullRequest = new PullRequest();
 
         await this._repository.SetupCurrentBranch();
-        let filesToReview = await this._repository.GetChangedFiles(fileExtensions, filesToExclude);
+        let filesToReview = await this._repository.GetChangedFiles({ fileExtensions, fileExtensionExcludes, filesToExclude });
 
         console.info(`filesToReview: `, filesToReview);
         tl.setProgress(0, 'Performing Code Review');
