@@ -1,9 +1,9 @@
 import tl from './taskWrapper';
 import { OpenAI, AzureOpenAI } from "openai";
-import { ChatGPT } from './chatgpt';
 import { Repository } from './repository';
-import { PullRequest } from './pullrequest';
 import parseGitDiff, { AddedLine, AnyChunk, AnyLineChange, Chunk, DeletedLine, GitDiff, UnchangedLine } from 'parse-git-diff';
+import { ChatGPT } from './chatGpt';
+import { PullRequest } from './pullRequest';
 
 export class Main {
     private static _chatGpt: ChatGPT;

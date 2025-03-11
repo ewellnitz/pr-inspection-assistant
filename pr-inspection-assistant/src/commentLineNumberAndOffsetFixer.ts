@@ -1,4 +1,5 @@
 import parseGitDiff, { AddedLine, AnyChunk, AnyLineChange, DeletedLine, GitDiff, UnchangedLine } from 'parse-git-diff';
+import { Review } from './types/review';
 
 /**
  * The `CommentLineNumberAndOffsetFixer` class provides methods to adjust the line numbers and offsets of comments
@@ -11,7 +12,7 @@ export class CommentLineNumberAndOffsetFixer {
      * @param review - The review object containing threads with comments.
      * @param diff - The git diff string used to adjust the line numbers and offsets.
      */
-    public fix(review: any, diff: string): void {
+    public static fix(review: Review, diff: string): void {
         if (!review.threads.length) {
             console.info('No threads found in the review. No line numbers to fix.');
             return;
@@ -23,8 +24,8 @@ export class CommentLineNumberAndOffsetFixer {
         for (const thread of review.threads) {
             if (thread.threadContext) {
                 console.info(`Thread before: ${JSON.stringify(thread, null, 4)}`);
-                this.fixThreadContextLineNumberAndOffsets(thread.threadContext, parsedDiff, true);
-                this.fixThreadContextLineNumberAndOffsets(thread.threadContext, parsedDiff, false);
+                CommentLineNumberAndOffsetFixer.fixThreadContextLineNumberAndOffsets(thread.threadContext, parsedDiff, true);
+                CommentLineNumberAndOffsetFixer.fixThreadContextLineNumberAndOffsets(thread.threadContext, parsedDiff, false);
                 console.info(`Thread after:`, JSON.stringify(thread, null, 4));
             }
         }
@@ -38,12 +39,12 @@ export class CommentLineNumberAndOffsetFixer {
      * @param isRightSide - A boolean indicating whether the changes are on the right side of the diff.
      * @returns void
      */
-    private fixThreadContextLineNumberAndOffsets(threadContext: any, parsedDiff: GitDiff, isRightSide: boolean): void {
+    private static fixThreadContextLineNumberAndOffsets(threadContext: any, parsedDiff: GitDiff, isRightSide: boolean): void {
         const fileStart = isRightSide ? threadContext.rightFileStart : threadContext.leftFileStart;
         const fileEnd = isRightSide ? threadContext.rightFileEnd : threadContext.leftFileEnd;
     
         if (fileStart?.snippet?.length) {
-            this.updateFileStartAndEnd(fileStart, fileEnd, parsedDiff, isRightSide);
+            CommentLineNumberAndOffsetFixer.updateFileStartAndEnd(fileStart, fileEnd, parsedDiff, isRightSide);
         }
     }
 
@@ -54,13 +55,13 @@ export class CommentLineNumberAndOffsetFixer {
      * @param parsedDiff - The parsed git diff object.
      * @param isRightSide - A boolean indicating if the changes are on the right side of the diff.
      */
-    private updateFileStartAndEnd(fileStart: any, fileEnd: any, parsedDiff: GitDiff, isRightSide: boolean): void {
-        const snippets = fileStart.snippet.split('\n');
+    private static updateFileStartAndEnd(fileStart: any, fileEnd: any, parsedDiff: GitDiff, isRightSide: boolean): void {
+        const snippets = fileStart.snippet.split(/[\r\n]+/);
         const isMultilineSnippet = snippets.length > 1;
         console.info('isMultilineSnippet', isMultilineSnippet);
         const snippetFirst = snippets[0];
         
-        const { lineNumber, offset } = this.getLineNumberAndOffset(parsedDiff, snippetFirst, fileStart.line, isRightSide);
+        const { lineNumber, offset } = CommentLineNumberAndOffsetFixer.getLineNumberAndOffset(parsedDiff, snippetFirst, fileStart.line, isRightSide);
         if (lineNumber === undefined || offset === undefined) {
             console.warn('No line number or offset found for snippet:', snippetFirst, 'line:');
             return;
@@ -72,7 +73,7 @@ export class CommentLineNumberAndOffsetFixer {
         fileEnd.offset = offset + snippetFirst.length;
 
         if (isMultilineSnippet) {
-            this.updateFileEndForMultilineSnippet(fileEnd, snippets, parsedDiff, isRightSide);
+            CommentLineNumberAndOffsetFixer.updateFileEndForMultilineSnippet(fileEnd, snippets, parsedDiff, isRightSide);
         }
     }
 
@@ -84,9 +85,9 @@ export class CommentLineNumberAndOffsetFixer {
      * @param parsedDiff - The parsed Git diff object containing information about the changes.
      * @param isRightSide - A boolean indicating whether the changes are on the right side of the diff.
      */
-    private updateFileEndForMultilineSnippet(fileEnd: any, snippets: string[], parsedDiff: GitDiff, isRightSide: boolean): void {
+    private static updateFileEndForMultilineSnippet(fileEnd: any, snippets: string[], parsedDiff: GitDiff, isRightSide: boolean): void {
         const snippetLast = snippets[snippets.length - 1];
-        const { lineNumber: lastLineNumber, offset: lastLineOffset } = this.getLineNumberAndOffset(parsedDiff, snippetLast, fileEnd.line, isRightSide);
+        const { lineNumber: lastLineNumber, offset: lastLineOffset } = CommentLineNumberAndOffsetFixer.getLineNumberAndOffset(parsedDiff, snippetLast, fileEnd.line, isRightSide);
         if (lastLineNumber === undefined || lastLineOffset === undefined) {
             console.warn('No line number or offset found for last line of snippet:', snippetLast);
             return;
@@ -104,12 +105,12 @@ export class CommentLineNumberAndOffsetFixer {
      * @param shouldSearchRightSide - A boolean indicating whether to search on the right side of the diff. Defaults to true.
      * @returns An object containing the line number and offset of the searchText within the diff. If the text is not found, both values will be undefined.
      */
-    private getLineNumberAndOffset(parsedDiff: GitDiff, searchText: string, originalLineNumber: number, shouldSearchRightSide: boolean = true): { lineNumber: number | undefined, offset: number | undefined } {
-        const line = this.getGitDiffLine(parsedDiff, searchText, originalLineNumber, shouldSearchRightSide);
+    private static getLineNumberAndOffset(parsedDiff: GitDiff, searchText: string, originalLineNumber: number, shouldSearchRightSide: boolean = true): { lineNumber: number | undefined, offset: number | undefined } {
+        const line = CommentLineNumberAndOffsetFixer.getGitDiffLine(parsedDiff, searchText, originalLineNumber, shouldSearchRightSide);
         if (!line) {
             return { lineNumber: undefined, offset: undefined };
         }
-        const lineNumber = this.getLineNumber(line, shouldSearchRightSide);
+        const lineNumber = CommentLineNumberAndOffsetFixer.getLineNumber(line, shouldSearchRightSide);
         const offset = line.content.indexOf(searchText) + 1;
         return { lineNumber, offset };
     }
@@ -121,7 +122,7 @@ export class CommentLineNumberAndOffsetFixer {
      * @param isRightSide - A boolean indicating whether to retrieve the line number from the right side (after the change) or the left side (before the change).
      * @returns The line number from the specified side, or undefined if not applicable.
      */
-    private getLineNumber(diffLineMeta: AnyLineChange, isRightSide: boolean): number | undefined {
+    private static getLineNumber(diffLineMeta: AnyLineChange, isRightSide: boolean): number | undefined {
         return isRightSide 
             ? (diffLineMeta as AddedLine | UnchangedLine)?.lineAfter 
             : (diffLineMeta as DeletedLine | UnchangedLine)?.lineBefore;
@@ -136,13 +137,13 @@ export class CommentLineNumberAndOffsetFixer {
      * @param shouldSearchRightSide - Optional. Indicates whether to search the right side of the diff. Defaults to true.
      * @returns The closest line number that matches the search text, or undefined if no match is found.
      */
-    private getGitDiffLine(diff: GitDiff, searchText: string, originalLineNumber: number, shouldSearchRightSide: boolean = true) {
-        const changes = this.getChangesFromDiff(diff);
-        const lines = this.filterChanges(changes, searchText, shouldSearchRightSide);
-        const line = this.findClosestLine(lines, originalLineNumber, shouldSearchRightSide);
+    private static getGitDiffLine(diff: GitDiff, searchText: string, originalLineNumber: number, shouldSearchRightSide: boolean = true) {
+        const changes = CommentLineNumberAndOffsetFixer.getChangesFromDiff(diff);
+        const lines = CommentLineNumberAndOffsetFixer.filterChanges(changes, searchText, shouldSearchRightSide);
+        const line = CommentLineNumberAndOffsetFixer.findClosestLine(lines, originalLineNumber, shouldSearchRightSide);
 
         if (!line) {
-            this.logWarnings(searchText, originalLineNumber, shouldSearchRightSide, changes, lines, diff);
+            CommentLineNumberAndOffsetFixer.logWarnings(searchText, originalLineNumber, shouldSearchRightSide, changes, lines, diff);
         }
 
         console.info('getGitDiffLine:', line);
@@ -156,7 +157,7 @@ export class CommentLineNumberAndOffsetFixer {
      * @param diff - The Git diff object containing file changes.
      * @returns An array of line changes extracted from the diff.
      */
-    private getChangesFromDiff(diff: GitDiff): AnyLineChange[] {
+    private static getChangesFromDiff(diff: GitDiff): AnyLineChange[] {
         if (!diff.files.length) {
             console.warn('No files found in the diff.');
             return [];
@@ -172,7 +173,7 @@ export class CommentLineNumberAndOffsetFixer {
      * @param shouldSearchRightSide - A boolean indicating whether to search the right side (added lines) or the left side (deleted lines).
      * @returns An array of line changes that match the search criteria.
      */
-    private filterChanges(changes: AnyLineChange[], searchText: string, shouldSearchRightSide: boolean): AnyLineChange[] {
+    private static filterChanges(changes: AnyLineChange[], searchText: string, shouldSearchRightSide: boolean): AnyLineChange[] {
         return changes.filter((change: AnyLineChange) => 
             change.content.includes(searchText) && 
             (change.type === 'UnchangedLine' || change.type === (shouldSearchRightSide ? 'AddedLine' : 'DeletedLine'))
@@ -187,7 +188,7 @@ export class CommentLineNumberAndOffsetFixer {
      * @param shouldSearchRightSide - A boolean indicating whether to search the right side (true) or the left side (false).
      * @returns The closest line change to the original line number, or undefined if the list is empty.
      */
-    private findClosestLine(lines: AnyLineChange[], originalLineNumber: number, shouldSearchRightSide: boolean): AnyLineChange | undefined {
+    private static findClosestLine(lines: AnyLineChange[], originalLineNumber: number, shouldSearchRightSide: boolean): AnyLineChange | undefined {
         return lines.reduce((previous: AnyLineChange, current: AnyLineChange) => {
             if (shouldSearchRightSide) {
                 const currentLine = current as AddedLine | UnchangedLine;
@@ -211,7 +212,7 @@ export class CommentLineNumberAndOffsetFixer {
      * @param lines - An array of all line changes.
      * @param diff - The Git diff object containing the changes.
      */
-    private logWarnings(searchText: string, originalLineNumber: number, shouldSearchRightSide: boolean, changes: AnyLineChange[], lines: AnyLineChange[], diff: GitDiff): void {
+    private static logWarnings(searchText: string, originalLineNumber: number, shouldSearchRightSide: boolean, changes: AnyLineChange[], lines: AnyLineChange[], diff: GitDiff): void {
         console.warn('getGitDiffLine: No line found for searchText:', searchText, 'originalLineNumber:', originalLineNumber, 'shouldSearchRightSide:', shouldSearchRightSide);
         console.warn('changes', JSON.stringify(changes, null, 4));
         console.warn('lines', JSON.stringify(lines, null, 4));

@@ -3,6 +3,7 @@ import { encode } from 'gpt-tokenizer';
 import { OpenAI, AzureOpenAI } from "openai";
 import parseGitDiff, { AddedLine, AnyChunk, AnyLineChange, DeletedLine, GitDiff, UnchangedLine } from 'parse-git-diff';
 import { CommentLineNumberAndOffsetFixer } from './commentLineNumberAndOffsetFixer';
+import { Review } from './types/review';
 
 type Client = OpenAI | AzureOpenAI;
 
@@ -11,12 +12,10 @@ export class ChatGPT {
     private readonly maxTokens: number = 128000;
     private _client: Client;
     private _enableCommentLineCorrection: boolean = false;
-    private _commentLineNumberAndOffsetFixer: CommentLineNumberAndOffsetFixer;
 
     constructor(client: Client, checkForBugs: boolean = false, checkForPerformance: boolean = false, checkForBestPractices: boolean = false, modifiedLinesOnly: boolean = true, enableCommentLineCorrection = false, additionalPrompts: string[] = []) {
         this._client = client; // Assign to private field
         this._enableCommentLineCorrection = enableCommentLineCorrection;
-        this._commentLineNumberAndOffsetFixer = new CommentLineNumberAndOffsetFixer();
         
         this.systemMessage = `Your task is to act as a code reviewer of a pull request within Azure DevOps.
         - You are provided with the code changes (diff) in a Unified Diff format.
@@ -82,11 +81,11 @@ export class ChatGPT {
     public async PerformCodeReview(diff: string, fileName: string, existingComments: string[]): Promise<any> {
         const review = await this.sendRequest(diff, fileName, existingComments);
 
-        this._enableCommentLineCorrection && this._commentLineNumberAndOffsetFixer.fix(review, diff);
+        this._enableCommentLineCorrection && CommentLineNumberAndOffsetFixer.fix(review, diff);
         return review;
     }
 
-    private async sendRequest(diff: string, fileName: string, existingComments: string[]): Promise<any> {
+    private async sendRequest(diff: string, fileName: string, existingComments: string[]): Promise<Review> {
         if (!fileName.startsWith('/')) {
             fileName = `/${fileName}`;
         }
@@ -130,7 +129,7 @@ export class ChatGPT {
             }
         }
         tl.warning(`Unable to process diff for file ${fileName} as it exceeds token limits.`);
-        return {};
+        return { threads: []};
     }
 
     private doesMessageExceedTokenLimit(message: string, tokenLimit: number): boolean {
