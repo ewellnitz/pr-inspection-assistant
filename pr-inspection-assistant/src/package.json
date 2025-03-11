@@ -4,18 +4,16 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest",
     "build": "tsc",
-    "dev": "tsc && dotenvx run -f .env.local -- npx ts-node main.ts",
-    "package": "npm run build && cd ../ && tfx extension create --manifest-globs vss-extension.json"
+    "build:watch": "tsc -w",
+    "package": "npm run build && npm run test && cd ../ && tfx extension create --manifest-globs vss-extension.json",
+    "dev": "npm run build && dotenvx run -f .env.local -- npx ts-node main.ts",
+    "test": "jest"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@azure/openai": "^2.0.0",
-    "@dqbd/tiktoken": "^1.0.7",
-    "azure-devops-extension-sdk": "^4.0.2",
     "azure-pipelines-task-lib": "^4.7.0",
     "gpt-tokenizer": "^2.1.2",
     "openai": "^4.80.0",
@@ -24,11 +22,7 @@
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.36.0",
-    "@types/mocha": "^10.0.6",
     "@types/node": "^22.7.2",
-    "@types/q": "^1.5.8",
-    "cross-env": "^7.0.3",
-    "sync-request": "^6.1.0",
     "tfx-cli": "^0.18.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.3",
