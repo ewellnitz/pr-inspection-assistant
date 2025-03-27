@@ -90,6 +90,7 @@ export class ChatGPT {
             fileName = `/${fileName}`;
         }
         let model = tl.getInput('ai_model', true) as | (string & {})
+            | 'o3-mini'
             | 'o1-mini'
             | 'o1-preview'
             | 'gpt-4o'
