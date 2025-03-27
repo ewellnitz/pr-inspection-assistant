@@ -34,7 +34,7 @@ Automate pull request (PR) reviews in Azure DevOps using the PR Inspection Assis
 - A [deployed model](https://learn.microsoft.com/en-us/azure/ai-studio/how-to/deploy-models-openai)
   - By default the task will try to use a deployment called `'o3-mini'`
   - Valid options are:
-    - '03-mini'
+    - 'o3-mini'
     - 'o1-mini'
     - 'o1-preview'
     - 'gpt-4o'
