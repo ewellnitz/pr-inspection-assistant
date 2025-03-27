@@ -32,8 +32,9 @@ Automate pull request (PR) reviews in Azure DevOps using the PR Inspection Assis
 - A generated API key for you OpenAI service
 - Your service endpoint URL e.g., `https://my-resource.azure.openai.com/`
 - A [deployed model](https://learn.microsoft.com/en-us/azure/ai-studio/how-to/deploy-models-openai)
-  - By default the task will try to use a deployment called `'o1-mini'`
+  - By default the task will try to use a deployment called `'o3-mini'`
   - Valid options are:
+    - 'o3-mini'
     - 'o1-mini'
     - 'o1-preview'
     - 'gpt-4o'
