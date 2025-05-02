@@ -1,7 +1,7 @@
 {
     "manifestVersion": 1,
     "id": "pria",
-    "version": "2.1.14",
+    "version": "2.1.16",
     "name": "PR Inspection Assistant",
     "publisher": "EricWellnitz",
     "public": true,
@@ -11,9 +11,7 @@
         }
     ],
     "description": "Automate pull request reviews in Azure DevOps using OpenAI or Azure OpenAI APIs. This bot analyzes code changes, offers suggestions, detects potential bugs, and ensures adherence to coding standards.",
-    "categories": [
-        "Azure Pipelines"
-    ],
+    "categories": ["Azure Pipelines"],
     "tags": [
         "PR",
         "Code Analysis",
@@ -46,8 +44,7 @@
         "type": "git",
         "uri": "https://github.com/ewellnitz/pr-inspection-assistant"
     },
-    "screenshots": [
-    ],
+    "screenshots": [],
     "content": {
         "details": {
             "path": "assets/overview.md"
@@ -70,9 +67,7 @@
         {
             "id": "custom-build-release-task",
             "type": "ms.vss-distributed-task.task",
-            "targets": [
-                "ms.vss-distributed-task.tasks"
-            ],
+            "targets": ["ms.vss-distributed-task.tasks"],
             "properties": {
                 "name": "src"
             }
