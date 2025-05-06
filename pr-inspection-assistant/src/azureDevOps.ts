@@ -1,6 +1,6 @@
-import tl from "./taskWrapper";
-import fetch from "node-fetch";
-import { Agent } from "https";
+import tl from './taskWrapper';
+import fetch from 'node-fetch';
+import { Agent } from 'https';
 
 export class AzureDevOps {
     private _httpsAgent: Agent;
@@ -14,7 +14,7 @@ export class AzureDevOps {
     public async Get<T = any>(endpoint: string): Promise<T> {
         const response = await this.Fetch({ endpoint });
         const result = (await response.json()) as T;
-        tl.debug(`GET result ${result}`);
+        tl.debug(`GET result: ${JSON.stringify(result)}`);
 
         return result;
     }
@@ -22,40 +22,38 @@ export class AzureDevOps {
     public async Post(endpoint: string, body: object): Promise<fetch.Response> {
         const response = await this.Fetch({
             endpoint,
-            method: "POST",
+            method: 'POST',
             body,
         });
         return response;
     }
 
-    public async Patch(endpoint: string, body: object): Promise<boolean> {
+    public async Patch(endpoint: string, body: object): Promise<fetch.Response> {
         const response = await this.Fetch({
             endpoint,
-            method: "PATCH",
+            method: 'PATCH',
             body,
             overrides: {
                 headers: {
-                    Authorization: `Bearer ${tl.getVariable(
-                        "System.AccessToken"
-                    )}`,
-                    "Content-Type": "application/json-patch+json",
+                    Authorization: `Bearer ${tl.getVariable('System.AccessToken')}`,
+                    'Content-Type': 'application/json-patch+json',
                 },
             },
         });
-        return response.ok;
+        return response;
     }
 
     public async Delete(endpoint: string): Promise<fetch.Response> {
         const response = await this.Fetch({
             endpoint,
-            method: "DELETE",
+            method: 'DELETE',
         });
         return response;
     }
 
     public async Fetch({
         endpoint,
-        method = "GET",
+        method = 'GET',
         body,
         overrides,
     }: {
@@ -64,14 +62,12 @@ export class AzureDevOps {
         body?: any;
         overrides?: fetch.RequestInit;
     }): Promise<fetch.Response> {
-        tl.debug(`ADO Fetching: ${method} ${endpoint} ${JSON.stringify(body)}`);
+        tl.debug(`ADO Fetching: ${method} ${endpoint} ${JSON.stringify(body ?? '')}`);
         const payload = {
             ...{
                 headers: {
-                    Authorization: `Bearer ${tl.getVariable(
-                        "System.AccessToken"
-                    )}`,
-                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${tl.getVariable('System.AccessToken')}`,
+                    'Content-Type': 'application/json',
                 },
                 agent: this._httpsAgent,
                 method,
@@ -82,9 +78,7 @@ export class AzureDevOps {
         const response = await fetch(endpoint, payload);
 
         if (!response.ok) {
-            tl.warning(
-                `ADO Failed to fetch: ${method} ${endpoint}. Response: ${response.statusText}`
-            );
+            tl.warning(`ADO Failed to fetch: ${method} ${endpoint}. Response: ${response.statusText}`);
         } else {
             tl.debug(`ADO Fetch success.`);
         }
