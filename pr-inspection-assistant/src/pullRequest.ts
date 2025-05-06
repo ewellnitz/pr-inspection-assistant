@@ -1,25 +1,21 @@
-import tl from "./taskWrapper";
-import { Agent } from "https";
-import { AzureDevOps } from "./azureDevOps";
-import { GitPullRequest } from "./types/azureDevOps/gitPullRequest";
-import { PropertiesCollection } from "./types/azureDevOps/propertiesCollection";
+import tl from './taskWrapper';
+import { Agent } from 'https';
+import { AzureDevOps } from './azureDevOps';
+import { GitPullRequest } from './types/azureDevOps/gitPullRequest';
+import { PropertiesCollection } from './types/azureDevOps/propertiesCollection';
+import { GitCommitChanges } from './types/azureDevOps/gitCommitChanges';
 
 export class PullRequest {
     private _httpsAgent: Agent;
 
-    private _collectionUri: string = tl.getVariable(
-        "System.TeamFoundationCollectionUri"
-    )!;
-    private _teamProjectId: string = tl.getVariable("System.TeamProjectId")!;
-    private _repositoryName: string = tl.getVariable("Build.Repository.Name")!;
-    private _pullRequestId: string = tl.getVariable(
-        "System.PullRequest.PullRequestId"
-    )!;
+    private _collectionUri: string = tl.getVariable('System.TeamFoundationCollectionUri')!;
+    private _teamProjectId: string = tl.getVariable('System.TeamProjectId')!;
+    private _repositoryName: string = tl.getVariable('Build.Repository.Name')!;
+    private _pullRequestId: string = tl.getVariable('System.PullRequest.PullRequestId')!;
     private _pullRequest?: GitPullRequest;
     private _ado: AzureDevOps;
 
-    private static readonly PRIA_LAST_REVIEWED_KEY =
-        "Anthology.Pria.LastReviewedCommit";
+    private static readonly PRIA_LAST_REVIEWED_KEY = 'Anthology.Pria.LastReviewedCommit';
 
     constructor() {
         this._httpsAgent = new Agent({
@@ -29,7 +25,11 @@ export class PullRequest {
     }
 
     public GetBaseUri(): string {
-        return `${this._collectionUri}${this._teamProjectId}/_apis/git/repositories/${this._repositoryName}/pullRequests/${this._pullRequestId}`;
+        return `${this._collectionUri}${this._teamProjectId}/_apis/git/repositories/${this._repositoryName}`;
+    }
+
+    public GetPullRequestBaseUri(): string {
+        return `${this.GetBaseUri()}/pullRequests/${this._pullRequestId}`;
     }
 
     public async GetPullRequest(): Promise<GitPullRequest> {
@@ -37,7 +37,7 @@ export class PullRequest {
 
         tl.debug(`Getting pull request ${this._pullRequestId}`);
 
-        const endpoint = `${this.GetBaseUri()}/?api-version=7.0`;
+        const endpoint = `${this.GetPullRequestBaseUri()}/?api-version=7.0`;
         return await this._ado.Get<GitPullRequest>(endpoint);
     }
 
@@ -62,48 +62,56 @@ export class PullRequest {
         }
 
         const result = this._pullRequest.lastMergeSourceCommit.commitId;
-        tl.debug(`Last merged source commit hash ${result}`);
+        console.info(`Last merged source commit hash ${result}`);
 
         return result;
     }
 
     public async GetLastReviewedCommitHash(): Promise<string> {
-        const endpoint = `${this.GetBaseUri()}/properties?api-version=7.0`;
+        const endpoint = `${this.GetPullRequestBaseUri()}/properties?api-version=7.0`;
 
         tl.debug(`Getting last reviewed commit hash`);
 
         let properties = await this._ado.Get<PropertiesCollection>(endpoint);
-        const value =
-            properties.value[PullRequest.PRIA_LAST_REVIEWED_KEY]?.$value;
+        const value = properties.value[PullRequest.PRIA_LAST_REVIEWED_KEY]?.$value;
 
-        tl.debug(`Last reviewed commit hash ${value}`);
+        console.info(`Last reviewed commit hash ${value}`);
         return value;
     }
 
     public async SaveLastReviewedCommit(commitHash: string): Promise<boolean> {
         tl.debug(`Saving last reviewed commit hash ${commitHash}`);
 
-        const endpoint = `${this.GetBaseUri()}/properties?api-version=7.0`;
+        const endpoint = `${this.GetPullRequestBaseUri()}/properties?api-version=7.0`;
         var body = [
             {
-                op: "replace",
+                op: 'replace',
                 path: `/${PullRequest.PRIA_LAST_REVIEWED_KEY}`,
                 value: commitHash,
             },
         ];
 
-        const ok = await this._ado.Patch(endpoint, body);
-        if (!ok) {
-            tl.warning(
-                `Failed to save last reviewed commit hash ${commitHash}`
-            );
+        const response = await this._ado.Patch(endpoint, body);
+        if (!response.ok) {
+            tl.warning(`Failed to save last reviewed commit hash ${commitHash}`);
         }
 
-        return ok;
+        return response.ok;
+    }
+
+    public async GetCommitFiles(commitHash: string): Promise<string[]> {
+        tl.debug(`Getting commit(${commitHash}) files.`);
+
+        const endpoint = `${this.GetBaseUri()}/commits/${commitHash}/changes?$api-version=7.0`;
+        const result = await this._ado.Get<GitCommitChanges>(endpoint);
+        const files = result.changes.filter(({ item }) => !item.isFolder).map(({ item }) => item.path);
+        console.info(`Commit files: ${JSON.stringify(files)}`);
+
+        return files;
     }
 
     public async AddThread(thread: any): Promise<boolean> {
-        const endpoint = `${this.GetBaseUri()}/threads?api-version=7.0`;
+        const endpoint = `${this.GetPullRequestBaseUri()}/threads?api-version=7.0`;
         const response = await this._ado.Post(endpoint, thread);
 
         if (!response.ok) {
@@ -118,11 +126,8 @@ export class PullRequest {
         return response.ok;
     }
 
-    public async AddComment(
-        fileName: string,
-        comment: string
-    ): Promise<boolean> {
-        if (!fileName.startsWith("/")) {
+    public async AddComment(fileName: string, comment: string): Promise<boolean> {
+        if (!fileName.startsWith('/')) {
             fileName = `/${fileName}`;
         }
 
@@ -150,29 +155,22 @@ export class PullRequest {
     }
 
     public async DeleteComment(thread: any, comment: any): Promise<boolean> {
-        const removeCommentUrl = `${this.GetBaseUri()}/threads/${
-            thread.id
-        }/comments/${comment.id}?api-version=5.1`;
+        const removeCommentUrl = `${this.GetPullRequestBaseUri()}/threads/${thread.id}/comments/${
+            comment.id
+        }?api-version=5.1`;
 
         const response = await this._ado.Delete(removeCommentUrl);
 
         if (!response.ok) {
-            tl.warning(
-                `Failed to delete comment from url ${removeCommentUrl} the response was ${response.statusText}`
-            );
+            tl.warning(`Failed to delete comment from url ${removeCommentUrl} the response was ${response.statusText}`);
         }
 
         return response.ok;
     }
 
     public async DeleteComments() {
-        let collectionName = this._collectionUri
-            .replace("https://", "")
-            .replace("http://", "")
-            .split("/")[1];
-        let buildServiceName = `${tl.getVariable(
-            "SYSTEM.TEAMPROJECT"
-        )} Build Service (${collectionName})`;
+        let collectionName = this._collectionUri.replace('https://', '').replace('http://', '').split('/')[1];
+        let buildServiceName = `${tl.getVariable('SYSTEM.TEAMPROJECT')} Build Service (${collectionName})`;
 
         let threads = await this.GetThreads();
 
@@ -180,8 +178,7 @@ export class PullRequest {
             let comments = await this.GetComments(thread);
 
             for (let comment of comments.value.filter(
-                (comment: any) =>
-                    comment.author.displayName === buildServiceName
+                (comment: any) => comment.author.displayName === buildServiceName
             ) as any[]) {
                 await this.DeleteComment(thread, comment);
             }
@@ -189,34 +186,25 @@ export class PullRequest {
     }
 
     public async GetThreads(): Promise<never[]> {
-        const threadsEndpoint = `${this.GetBaseUri()}/threads?api-version=5.1`;
+        const threadsEndpoint = `${this.GetPullRequestBaseUri()}/threads?api-version=5.1`;
         const threads = await this._ado.Get(threadsEndpoint);
 
-        return threads.value.filter(
-            (thread: any) => thread.threadContext !== null
-        );
+        return threads.value.filter((thread: any) => thread.threadContext !== null);
     }
 
     public async GetComments(thread: any): Promise<any> {
-        let commentsEndpoint = `${this.GetBaseUri()}/threads/${
-            thread.id
-        }/comments?api-version=5.1`;
+        let commentsEndpoint = `${this.GetPullRequestBaseUri()}/threads/${thread.id}/comments?api-version=5.1`;
 
         const comments = await this._ado.Get(commentsEndpoint);
         return comments;
     }
 
     public async GetCommentsForFile(fileName: string): Promise<string[]> {
-        if (!fileName.startsWith("/")) {
+        if (!fileName.startsWith('/')) {
             fileName = `/${fileName}`;
         }
-        let collectionName = this._collectionUri
-            .replace("https://", "")
-            .replace("http://", "")
-            .split("/")[1];
-        let buildServiceName = `${tl.getVariable(
-            "SYSTEM.TEAMPROJECT"
-        )} Build Service (${collectionName})`;
+        let collectionName = this._collectionUri.replace('https://', '').replace('http://', '').split('/')[1];
+        let buildServiceName = `${tl.getVariable('SYSTEM.TEAMPROJECT')} Build Service (${collectionName})`;
 
         const threads = await this.GetThreads();
         const comments: string[] = [];
@@ -228,14 +216,8 @@ export class PullRequest {
 
         for (let thread of threads as any[]) {
             if (thread.threadContext)
-                tl.isVerboseLoggingEnabled() &&
-                    console.info(
-                        `Thread filePath: ${thread.threadContext.filePath}`
-                    );
-            if (
-                thread.threadContext &&
-                thread.threadContext.filePath === fileName
-            ) {
+                tl.isVerboseLoggingEnabled() && console.info(`Thread filePath: ${thread.threadContext.filePath}`);
+            if (thread.threadContext && thread.threadContext.filePath === fileName) {
                 const threadComments = await this.GetComments(thread);
                 //TODO: this filter is not working in all envrionments
                 //for (let comment of threadComments.value.filter((comment: any) => comment.author.displayName === buildServiceName) as any[]) {
