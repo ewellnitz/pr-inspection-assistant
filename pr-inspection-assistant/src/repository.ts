@@ -69,25 +69,45 @@ export class Repository {
     }
 
     public async GetDiff(fileName: string): Promise<string> {
-        let targetBranch = this.GetTargetBranch();
-
-        let diff = await this._repository.diff([targetBranch, '--', fileName.replace(/^\//, '')]);
-
+        const target = await this.GetMergeBase();
+        const args = [target, '--', fileName.replace(/^\//, '')];
+        console.info('GetDiff()', args.join(' '));
+        const diff = await this._repository.diff(args);
         return diff;
     }
 
-    private GetTargetBranch(): string {
-        let targetBranchName = tl.getVariable('System.PullRequest.TargetBranchName');
+    private async GetMergeBase(): Promise<string> {
+        // In Azure DevOps, the source should always be HEAD as its current branch is based on a PR merge branch (eg., pull/xxxx/merge).
+        // Changing it to the PR source branch will cause merge-base to be different, which ultimately results in the diff to be incorrect.
+        // TODO: see if we can simplify this by leveraging ADO API to get the merge base or diff
+        const source = tl.isDev() ? this.GetSourceBranch() : 'HEAD';
+        const command = ['merge-base', this.GetTargetBranch(), source];
+        const result = (await this._repository.raw(command)).trim();
+        console.info('GetMergeBase()', command.join(' '), `-> ${result}`);
+        return result;
+    }
 
-        if (!targetBranchName) {
-            targetBranchName = tl.getVariable('System.PullRequest.TargetBranch')?.replace('refs/heads/', '');
+    private GetSourceBranch(): string {
+        // TODO: For Dev mode, see about removing need for System.PullRequest.SourceBranch and get it from PR directly
+        const sourceBranch = tl.getVariable('System.PullRequest.SourceBranch')?.replace('refs/heads/', '');
+        if (!sourceBranch) {
+            throw new Error(`Could not find source branch`);
+        }
+        console.info('GetSourceBranch()', sourceBranch);
+        return `origin/${sourceBranch}`;
+    }
+
+    private GetTargetBranch(): string {
+        let target = tl.getVariable('System.PullRequest.TargetBranchName');
+
+        if (!target) {
+            target = tl.getVariable('System.PullRequest.TargetBranch')?.replace('refs/heads/', '');
         }
 
-        if (!targetBranchName) {
+        if (!target) {
             throw new Error(`Could not find target branch`);
         }
 
-        const includeOriginPrefix = tl.getVariable('TargetBranch_IncludeOriginPrefix') !== 'false';
-        return `${includeOriginPrefix ? 'origin/' : ''}${targetBranchName}`;
+        return `origin/${target}`;
     }
 }

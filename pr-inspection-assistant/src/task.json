@@ -9,7 +9,7 @@
     "version": {
         "Major": 2,
         "Minor": 1,
-        "Patch": 17
+        "Patch": 22
     },
     "instanceNameFormat": "PRIA $(message)",
     "inputs": [
@@ -125,6 +125,13 @@
             "label": "Enable comment line correction",
             "defaultValue": true,
             "helpMarkDown": "Correct comment line number and offsets."
+        },
+        {
+            "name": "allow_requeue",
+            "type": "boolean",
+            "label": "Allow reviewing on requeues",
+            "defaultValue": false,
+            "helpMarkDown": "Set to true to allow revieiwing on requeues.  Default value is `false`."
         }
     ],
     "execution": {
