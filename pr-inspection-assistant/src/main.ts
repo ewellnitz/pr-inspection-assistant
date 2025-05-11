@@ -37,6 +37,7 @@ export class Main {
         const bestPractices = tl.getBoolInput('best_practices', false);
         const modifiedLinesOnly = tl.getBoolInput('modified_lines_only', false);
         const enableCommentLineCorrection = tl.getBoolInput('comment_line_correction', false);
+        const allowRequeue = tl.getBoolInput('allow_requeue', false);
 
         console.info(`file_extensions: ${fileExtensions}`);
         console.info(`file_extension_excludes: ${fileExtensionExcludes}`);
@@ -49,6 +50,7 @@ export class Main {
         console.info(`azureApiEndpoint: ${azureApiEndpoint}`);
         console.info(`azureModelDeployment: ${azureModelDeployment}`);
         console.info(`enableCommentLineCorrection: ${enableCommentLineCorrection}`);
+        console.info(`allowRequeue: ${allowRequeue}`);
 
         const client = azureApiEndpoint
             ? new AzureOpenAI({
@@ -79,7 +81,7 @@ export class Main {
         const lastMergedCommit = await this._pullRequest.GetLastMergeSourceCommitHash();
         const isRequeued = lastReviewedCommit === lastMergedCommit;
 
-        if (isRequeued) {
+        if (isRequeued && !allowRequeue) {
             // Prevents PRIA from reviewing again based on last reviewed commit
             console.info(`Aborting.  Last reviewed commit matches last merged commit: ${lastReviewedCommit}.`);
             return;
