@@ -9,7 +9,7 @@
     "version": {
         "Major": 2,
         "Minor": 1,
-        "Patch": 22
+        "Patch": 23
     },
     "instanceNameFormat": "PRIA $(message)",
     "inputs": [
@@ -86,7 +86,7 @@
             "label": "File extensions to include",
             "defaultValue": "",
             "required": false,
-            "helpMarkDown": "Specify a comma-separated list of file extensions for which you want to perform a code review. This input helps narrow down the scope of the code review to specific file types.\n\n**Example:**\n```plaintext\n\".js,.ts,.css,.html\"\n```\n\nMake sure to provide the file extensions without spaces after the commas."
+            "helpMarkDown": "Deprecated: Use file_includes instead.  Specify a comma-separated list of file extensions for which you want to perform a code review. This input helps narrow down the scope of the code review to specific file types.\n\n**Example:**\n```plaintext\n\".js,.ts,.css,.html\"\n```\n\nMake sure to provide the file extensions without spaces after the commas."
         },
         {
             "name": "file_extension_excludes",
@@ -94,7 +94,15 @@
             "label": "File extensions to exclude",
             "defaultValue": "",
             "required": false,
-            "helpMarkDown": "Specify a comma-separated list of file extensions that should be excluded from code reviews.\n\n**Example:**\n```plaintext\n\".js,.ts,.css,.html\"\n```\n\nMake sure to provide the file extensions without spaces after the commas."
+            "helpMarkDown": "Deprecated: Use file_excludes instead.  Specify a comma-separated list of file extensions that should be excluded from code reviews.\n\n**Example:**\n```plaintext\n\".js,.ts,.css,.html\"\n```\n\nMake sure to provide the file extensions without spaces after the commas."
+        },
+        {
+            "name": "file_includes",
+            "type": "string",
+            "label": "Files to include",
+            "defaultValue": "",
+            "required": false,
+            "helpMarkDown": "## Files to Include Configuration\n\n### Description\nSpecify a comma-separated list of glob-supported file names to be reviewed.\n\n### Format\nProvide a list of file names separated by commas. For example: `file1.js, *.py, secret.txt`\n\n### Default Value\nIf no files are specified, all files will be considered for code review by default."
         },
         {
             "name": "file_excludes",
@@ -102,7 +110,7 @@
             "label": "Files to exclude",
             "defaultValue": "",
             "required": false,
-            "helpMarkDown": "## Files to Exclude Configuration\n\n### Description\nSpecify a comma-separated list of file names that should be excluded from code reviews. This is useful for excluding sensitive files or preventing certain files from being reviewed.\n\n### Format\nProvide a list of file names separated by commas. For example: `file1.js, file2.py, secret.txt`\n\n### Default Value\nIf no files are specified, all files will be considered for code review by default."
+            "helpMarkDown": "## Files to Exclude Configuration\n\n### Description\nSpecify a comma-separated list of glob-supported file names that should be excluded from code reviews. This is useful for excluding sensitive files or preventing certain files from being reviewed.\n\n### Format\nProvide a list of file names separated by commas. For example: `file1.js, *.py, secret.txt`\n\n### Default Value\nIf no files are specified, all files will be considered for code review by default."
         },
         {
             "name": "additional_prompts",

@@ -3,6 +3,7 @@ import { OpenAI, AzureOpenAI } from 'openai';
 import { Repository } from './repository';
 import { ChatGPT } from './chatGpt';
 import { PullRequest } from './pullRequest';
+import { filterFilesForReview } from './fileUtils';
 
 export class Main {
     private static _chatGpt: ChatGPT;
@@ -28,8 +29,11 @@ export class Main {
         const azureApiEndpoint = tl.getInput('api_endpoint', false)!;
         const azureApiVersion = tl.getInput('api_version', false)!;
         const azureModelDeployment = tl.getInput('ai_model', false)!;
+        // Deprecated: Use "file_includes" instead
         const fileExtensions = tl.getInput('file_extensions', false);
+        // Deprecated: Use "file_excludes" instead
         const fileExtensionExcludes = tl.getInput('file_extension_excludes', false);
+        const filesToInclude = tl.getInput('file_includes', false);
         const filesToExclude = tl.getInput('file_excludes', false);
         const additionalPrompts = tl.getInput('additional_prompts', false)?.split(',');
         const bugs = tl.getBoolInput('bugs', false);
@@ -41,6 +45,7 @@ export class Main {
 
         console.info(`file_extensions: ${fileExtensions}`);
         console.info(`file_extension_excludes: ${fileExtensionExcludes}`);
+        console.info(`files_include: ${filesToInclude}`);
         console.info(`file_excludes: ${filesToExclude}`);
         console.info(`additional_prompts: ${additionalPrompts}`);
         console.info(`bugs: ${bugs}`);
@@ -90,9 +95,10 @@ export class Main {
         const lastCommitFiles = await this._pullRequest.GetCommitFiles(lastMergedCommit);
         console.info('Last commit files', lastCommitFiles);
 
-        let filesToReview = await this._repository.GetChangedFiles({
+        let filesToReview = filterFilesForReview({
             fileExtensions,
             fileExtensionExcludes,
+            filesToInclude,
             filesToExclude,
             files: lastCommitFiles,
         });

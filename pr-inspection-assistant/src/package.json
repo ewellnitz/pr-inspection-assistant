@@ -16,18 +16,20 @@
   "dependencies": {
     "azure-pipelines-task-lib": "^4.7.0",
     "gpt-tokenizer": "^2.1.2",
+    "micromatch": "^4.0.8",
     "openai": "^4.80.0",
     "parse-git-diff": "^0.0.17",
     "simple-git": "^3.21.0"
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.36.0",
+    "@types/jest": "^29.0.0",
+    "@types/micromatch": "^4.0.9",
     "@types/node": "^22.7.2",
-    "tfx-cli": "^0.18.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.7.3",
     "jest": "^29.0.0",
+    "tfx-cli": "^0.18.0",
     "ts-jest": "^29.0.0",
-    "@types/jest": "^29.0.0"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
   }
 }

@@ -1,6 +1,5 @@
 import tl from './taskWrapper';
 import { SimpleGit, SimpleGitOptions, simpleGit } from 'simple-git';
-import binaryExtensions from './binaryExtensions.json';
 
 export class Repository {
     private gitOptions: Partial<SimpleGitOptions> = {
@@ -29,43 +28,6 @@ export class Repository {
             const currentBranch = (await this._repository.branch()).current;
             console.info(`Current branch set to: `, currentBranch);
         }
-    }
-
-    public async GetChangedFiles({
-        fileExtensions,
-        fileExtensionExcludes,
-        filesToExclude,
-        files,
-    }: {
-        fileExtensions: string | undefined;
-        fileExtensionExcludes: string | undefined;
-        filesToExclude: string | undefined;
-        files: string[];
-    }): Promise<string[]> {
-        let filesToReview = files.filter(
-            (file) => !binaryExtensions.includes(file.slice(((file.lastIndexOf('.') - 1) >>> 0) + 2))
-        );
-
-        if (fileExtensions) {
-            let fileExtensionsToInclude = fileExtensions.trim().split(',');
-            filesToReview = filesToReview.filter((file) =>
-                fileExtensionsToInclude.includes(file.substring(file.lastIndexOf('.')))
-            );
-        }
-
-        if (fileExtensionExcludes) {
-            let fileExtensionsToExclude = fileExtensionExcludes.trim().split(',');
-            filesToReview = filesToReview.filter(
-                (file) => !fileExtensionsToExclude.includes(file.substring(file.lastIndexOf('.')))
-            );
-        }
-
-        if (filesToExclude) {
-            let fileNamesToExclude = filesToExclude.trim().split(',');
-            filesToReview = filesToReview.filter((file) => !fileNamesToExclude.includes(file.split('/').pop()!.trim()));
-        }
-
-        return filesToReview;
     }
 
     public async GetDiff(fileName: string): Promise<string> {
