@@ -11,16 +11,16 @@ export class AzureDevOps {
         });
     }
 
-    public async Get<T = any>(endpoint: string): Promise<T> {
-        const response = await this.Fetch({ endpoint });
+    public async get<T = any>(endpoint: string): Promise<T> {
+        const response = await this.fetch({ endpoint });
         const result = (await response.json()) as T;
         tl.debug(`GET result: ${JSON.stringify(result)}`);
 
         return result;
     }
 
-    public async Post(endpoint: string, body: object): Promise<fetch.Response> {
-        const response = await this.Fetch({
+    public async post(endpoint: string, body: object): Promise<fetch.Response> {
+        const response = await this.fetch({
             endpoint,
             method: 'POST',
             body,
@@ -28,8 +28,8 @@ export class AzureDevOps {
         return response;
     }
 
-    public async Patch(endpoint: string, body: object): Promise<fetch.Response> {
-        const response = await this.Fetch({
+    public async patch(endpoint: string, body: object): Promise<fetch.Response> {
+        const response = await this.fetch({
             endpoint,
             method: 'PATCH',
             body,
@@ -43,15 +43,15 @@ export class AzureDevOps {
         return response;
     }
 
-    public async Delete(endpoint: string): Promise<fetch.Response> {
-        const response = await this.Fetch({
+    public async delete(endpoint: string): Promise<fetch.Response> {
+        const response = await this.fetch({
             endpoint,
             method: 'DELETE',
         });
         return response;
     }
 
-    public async Fetch({
+    public async fetch({
         endpoint,
         method = 'GET',
         body,
