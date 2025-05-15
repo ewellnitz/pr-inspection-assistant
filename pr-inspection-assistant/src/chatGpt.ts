@@ -1,6 +1,6 @@
 import tl from './taskWrapper';
 import { encode } from 'gpt-tokenizer';
-import { OpenAI, AzureOpenAI } from "openai";
+import { OpenAI, AzureOpenAI } from 'openai';
 import parseGitDiff, { AddedLine, AnyChunk, AnyLineChange, DeletedLine, GitDiff, UnchangedLine } from 'parse-git-diff';
 import { CommentLineNumberAndOffsetFixer } from './commentLineNumberAndOffsetFixer';
 import { Review } from './types/review';
@@ -13,10 +13,18 @@ export class ChatGPT {
     private _client: Client;
     private _enableCommentLineCorrection: boolean = false;
 
-    constructor(client: Client, checkForBugs: boolean = false, checkForPerformance: boolean = false, checkForBestPractices: boolean = false, modifiedLinesOnly: boolean = true, enableCommentLineCorrection = false, additionalPrompts: string[] = []) {
+    constructor(
+        client: Client,
+        checkForBugs: boolean = false,
+        checkForPerformance: boolean = false,
+        checkForBestPractices: boolean = false,
+        modifiedLinesOnly: boolean = true,
+        enableCommentLineCorrection = false,
+        additionalPrompts: string[] = []
+    ) {
         this._client = client; // Assign to private field
         this._enableCommentLineCorrection = enableCommentLineCorrection;
-        
+
         this.systemMessage = `Your task is to act as a code reviewer of a pull request within Azure DevOps.
         - You are provided with the code changes (diff) in a Unified Diff format.
         - You are provided with a file path (fileName).
@@ -25,8 +33,12 @@ export class ChatGPT {
         ${modifiedLinesOnly ? '- Only comment on modified lines.' : ''}
         ${checkForBugs ? '- If there are any bugs, highlight them.' : ''}
         ${checkForPerformance ? '- If there are major performance problems, highlight them.' : ''}
-        ${checkForBestPractices ? '- Provide details on missed use of best-practices.' : '- Do not provide comments on best practices.'}
-        ${additionalPrompts.length > 0 ? additionalPrompts.map(str => `- ${str}`).join('\n') : ''}`;
+        ${
+            checkForBestPractices
+                ? '- Provide details on missed use of best-practices.'
+                : '- Do not provide comments on best practices.'
+        }
+        ${additionalPrompts.length > 0 ? additionalPrompts.map((str) => `- ${str}`).join('\n') : ''}`;
 
         this.systemMessage += `The response should be a single JSON object (without fenced codeblock) and it must use this sample JSON format:
         {
@@ -73,12 +85,12 @@ export class ChatGPT {
                     // }
                 }
             ]
-        }`
+        }`;
 
         console.info(`System prompt:\n${this.systemMessage}`);
     }
 
-    public async PerformCodeReview(diff: string, fileName: string, existingComments: string[]): Promise<any> {
+    public async performCodeReview(diff: string, fileName: string, existingComments: string[]): Promise<any> {
         const review = await this.sendRequest(diff, fileName, existingComments);
 
         this._enableCommentLineCorrection && CommentLineNumberAndOffsetFixer.fix(review, diff);
@@ -89,7 +101,8 @@ export class ChatGPT {
         if (!fileName.startsWith('/')) {
             fileName = `/${fileName}`;
         }
-        let model = tl.getInput('ai_model', true) as | (string & {})
+        let model = tl.getInput('ai_model', true) as
+            | (string & {})
             | 'o3-mini'
             | 'o1-mini'
             | 'o1-preview'
@@ -100,7 +113,7 @@ export class ChatGPT {
         let userPrompt = {
             fileName: fileName,
             diff: diff,
-            existingComments: existingComments
+            existingComments: existingComments,
         };
 
         let prompt = JSON.stringify(userPrompt, null, 4);
@@ -111,14 +124,15 @@ export class ChatGPT {
             let openAi = await this._client.chat.completions.create({
                 messages: [
                     {
-                        role: model == 'o1-preview' || model == "o1-mini" ? 'assistant' : 'system',
-                        content: this.systemMessage
+                        role: model == 'o1-preview' || model == 'o1-mini' ? 'assistant' : 'system',
+                        content: this.systemMessage,
                     },
                     {
                         role: 'user',
-                        content: prompt
-                    }
-                ], model: model
+                        content: prompt,
+                    },
+                ],
+                model: model,
             });
 
             let response = openAi.choices;
@@ -130,7 +144,7 @@ export class ChatGPT {
             }
         }
         tl.warning(`Unable to process diff for file ${fileName} as it exceeds token limits.`);
-        return { threads: []};
+        return { threads: [] };
     }
 
     private doesMessageExceedTokenLimit(message: string, tokenLimit: number): boolean {

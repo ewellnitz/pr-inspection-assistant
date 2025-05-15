@@ -4,6 +4,7 @@ import { AzureDevOps } from './azureDevOps';
 import { GitPullRequest } from './types/azureDevOps/gitPullRequest';
 import { PropertiesCollection } from './types/azureDevOps/propertiesCollection';
 import { GitCommitChanges } from './types/azureDevOps/gitCommitChanges';
+import { GitChangeItem } from './types/azureDevOps/gitChangeItem';
 
 export class PullRequest {
     private _httpsAgent: Agent;
@@ -15,7 +16,7 @@ export class PullRequest {
     private _pullRequest?: GitPullRequest;
     private _ado: AzureDevOps;
 
-    private static readonly PRIA_LAST_REVIEWED_KEY = 'Anthology.Pria.LastReviewedCommit';
+    private static readonly PRIA_LAST_REVIEWED_KEY = 'Pria.LastReviewedCommit';
 
     constructor() {
         this._httpsAgent = new Agent({
@@ -24,28 +25,28 @@ export class PullRequest {
         this._ado = new AzureDevOps();
     }
 
-    public GetBaseUri(): string {
+    public getBaseUri(): string {
         return `${this._collectionUri}${this._teamProjectId}/_apis/git/repositories/${this._repositoryName}`;
     }
 
-    public GetPullRequestBaseUri(): string {
-        return `${this.GetBaseUri()}/pullRequests/${this._pullRequestId}`;
+    public getPullRequestBaseUri(): string {
+        return `${this.getBaseUri()}/pullRequests/${this._pullRequestId}`;
     }
 
-    public async GetPullRequest(): Promise<GitPullRequest> {
+    public async getPullRequest(): Promise<GitPullRequest> {
         if (this._pullRequest) return this._pullRequest;
 
         tl.debug(`Getting pull request ${this._pullRequestId}`);
 
-        const endpoint = `${this.GetPullRequestBaseUri()}/?api-version=7.0`;
-        return await this._ado.Get<GitPullRequest>(endpoint);
+        const endpoint = `${this.getPullRequestBaseUri()}/?api-version=7.0`;
+        return await this._ado.get<GitPullRequest>(endpoint);
     }
 
-    public async GetLastMergedCommitHash(): Promise<string> {
+    public async getLastMergedCommitHash(): Promise<string> {
         tl.debug(`Getting last merged commit hash`);
 
         if (!this._pullRequest) {
-            this._pullRequest = await this.GetPullRequest();
+            this._pullRequest = await this.getPullRequest();
         }
 
         const result = this._pullRequest.lastMergeCommit.commitId;
@@ -54,11 +55,11 @@ export class PullRequest {
         return result;
     }
 
-    public async GetLastMergeSourceCommitHash(): Promise<string> {
+    public async getLastMergeSourceCommitHash(): Promise<string> {
         tl.debug(`Getting last merge source commit hash`);
 
         if (!this._pullRequest) {
-            this._pullRequest = await this.GetPullRequest();
+            this._pullRequest = await this.getPullRequest();
         }
 
         const result = this._pullRequest.lastMergeSourceCommit.commitId;
@@ -67,22 +68,22 @@ export class PullRequest {
         return result;
     }
 
-    public async GetLastReviewedCommitHash(): Promise<string> {
-        const endpoint = `${this.GetPullRequestBaseUri()}/properties?api-version=7.0`;
+    public async getLastReviewedCommitHash(): Promise<string> {
+        const endpoint = `${this.getPullRequestBaseUri()}/properties?api-version=7.0`;
 
         tl.debug(`Getting last reviewed commit hash`);
 
-        let properties = await this._ado.Get<PropertiesCollection>(endpoint);
+        let properties = await this._ado.get<PropertiesCollection>(endpoint);
         const value = properties.value[PullRequest.PRIA_LAST_REVIEWED_KEY]?.$value;
 
         console.info(`Last reviewed commit hash ${value}`);
         return value;
     }
 
-    public async SaveLastReviewedCommit(commitHash: string): Promise<boolean> {
+    public async saveLastReviewedCommit(commitHash: string): Promise<boolean> {
         tl.debug(`Saving last reviewed commit hash ${commitHash}`);
 
-        const endpoint = `${this.GetPullRequestBaseUri()}/properties?api-version=7.0`;
+        const endpoint = `${this.getPullRequestBaseUri()}/properties?api-version=7.0`;
         var body = [
             {
                 op: 'replace',
@@ -91,7 +92,7 @@ export class PullRequest {
             },
         ];
 
-        const response = await this._ado.Patch(endpoint, body);
+        const response = await this._ado.patch(endpoint, body);
         if (!response.ok) {
             tl.warning(`Failed to save last reviewed commit hash ${commitHash}`);
         }
@@ -99,20 +100,22 @@ export class PullRequest {
         return response.ok;
     }
 
-    public async GetCommitFiles(commitHash: string): Promise<string[]> {
+    public async getCommitFiles(commitHash: string): Promise<string[]> {
         tl.debug(`Getting commit(${commitHash}) files.`);
 
-        const endpoint = `${this.GetBaseUri()}/commits/${commitHash}/changes?$api-version=7.0`;
-        const result = await this._ado.Get<GitCommitChanges>(endpoint);
-        const files = result.changes.filter(({ item }) => !item.isFolder).map(({ item }) => item.path);
+        const endpoint = `${this.getBaseUri()}/commits/${commitHash}/changes?$api-version=7.0`;
+        const result = await this._ado.get<GitCommitChanges>(endpoint);
+        const files = result.changes
+            .filter(({ item }: { item: GitChangeItem }) => !item.isFolder)
+            .map(({ item }: { item: GitChangeItem }) => item.path);
         console.info(`Commit files: ${JSON.stringify(files)}`);
 
         return files;
     }
 
-    public async AddThread(thread: any): Promise<boolean> {
-        const endpoint = `${this.GetPullRequestBaseUri()}/threads?api-version=7.0`;
-        const response = await this._ado.Post(endpoint, thread);
+    public async addThread(thread: any): Promise<boolean> {
+        const endpoint = `${this.getPullRequestBaseUri()}/threads?api-version=7.0`;
+        const response = await this._ado.post(endpoint, thread);
 
         if (!response.ok) {
             if (response.status === 401) {
@@ -126,7 +129,7 @@ export class PullRequest {
         return response.ok;
     }
 
-    public async AddComment(fileName: string, comment: string): Promise<boolean> {
+    public async addComment(fileName: string, comment: string): Promise<boolean> {
         if (!fileName.startsWith('/')) {
             fileName = `/${fileName}`;
         }
@@ -151,15 +154,15 @@ export class PullRequest {
             },
         };
 
-        return this.AddThread(body);
+        return this.addThread(body);
     }
 
-    public async DeleteComment(thread: any, comment: any): Promise<boolean> {
-        const removeCommentUrl = `${this.GetPullRequestBaseUri()}/threads/${thread.id}/comments/${
+    public async deleteComment(thread: any, comment: any): Promise<boolean> {
+        const removeCommentUrl = `${this.getPullRequestBaseUri()}/threads/${thread.id}/comments/${
             comment.id
         }?api-version=5.1`;
 
-        const response = await this._ado.Delete(removeCommentUrl);
+        const response = await this._ado.delete(removeCommentUrl);
 
         if (!response.ok) {
             tl.warning(`Failed to delete comment from url ${removeCommentUrl} the response was ${response.statusText}`);
@@ -168,45 +171,45 @@ export class PullRequest {
         return response.ok;
     }
 
-    public async DeleteComments() {
+    public async deleteComments() {
         let collectionName = this._collectionUri.replace('https://', '').replace('http://', '').split('/')[1];
         let buildServiceName = `${tl.getVariable('SYSTEM.TEAMPROJECT')} Build Service (${collectionName})`;
 
-        let threads = await this.GetThreads();
+        let threads = await this.getThreads();
 
         for (let thread of threads as any[]) {
-            let comments = await this.GetComments(thread);
+            let comments = await this.getComments(thread);
 
             for (let comment of comments.value.filter(
                 (comment: any) => comment.author.displayName === buildServiceName
             ) as any[]) {
-                await this.DeleteComment(thread, comment);
+                await this.deleteComment(thread, comment);
             }
         }
     }
 
-    public async GetThreads(): Promise<never[]> {
-        const threadsEndpoint = `${this.GetPullRequestBaseUri()}/threads?api-version=5.1`;
-        const threads = await this._ado.Get(threadsEndpoint);
+    public async getThreads(): Promise<never[]> {
+        const threadsEndpoint = `${this.getPullRequestBaseUri()}/threads?api-version=5.1`;
+        const threads = await this._ado.get(threadsEndpoint);
 
         return threads.value.filter((thread: any) => thread.threadContext !== null);
     }
 
-    public async GetComments(thread: any): Promise<any> {
-        let commentsEndpoint = `${this.GetPullRequestBaseUri()}/threads/${thread.id}/comments?api-version=5.1`;
+    public async getComments(thread: any): Promise<any> {
+        let commentsEndpoint = `${this.getPullRequestBaseUri()}/threads/${thread.id}/comments?api-version=5.1`;
 
-        const comments = await this._ado.Get(commentsEndpoint);
+        const comments = await this._ado.get(commentsEndpoint);
         return comments;
     }
 
-    public async GetCommentsForFile(fileName: string): Promise<string[]> {
+    public async getCommentsForFile(fileName: string): Promise<string[]> {
         if (!fileName.startsWith('/')) {
             fileName = `/${fileName}`;
         }
         let collectionName = this._collectionUri.replace('https://', '').replace('http://', '').split('/')[1];
         let buildServiceName = `${tl.getVariable('SYSTEM.TEAMPROJECT')} Build Service (${collectionName})`;
 
-        const threads = await this.GetThreads();
+        const threads = await this.getThreads();
         const comments: string[] = [];
 
         console.info(`fileName: ${fileName}`);
@@ -218,7 +221,7 @@ export class PullRequest {
             if (thread.threadContext)
                 tl.isVerboseLoggingEnabled() && console.info(`Thread filePath: ${thread.threadContext.filePath}`);
             if (thread.threadContext && thread.threadContext.filePath === fileName) {
-                const threadComments = await this.GetComments(thread);
+                const threadComments = await this.getComments(thread);
                 //TODO: this filter is not working in all envrionments
                 //for (let comment of threadComments.value.filter((comment: any) => comment.author.displayName === buildServiceName) as any[]) {
                 for (let comment of threadComments.value as any[]) {

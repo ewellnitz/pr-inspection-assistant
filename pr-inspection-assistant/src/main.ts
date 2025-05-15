@@ -10,7 +10,7 @@ export class Main {
     private static _repository: Repository;
     private static _pullRequest: PullRequest;
 
-    public static async Main(): Promise<void> {
+    public static async main(): Promise<void> {
         if (tl.getVariable('Build.Reason') !== 'PullRequest') {
             tl.setResult(tl.TaskResult.Skipped, 'This task must only be used when triggered by a Pull Request.');
             return;
@@ -80,10 +80,10 @@ export class Main {
         this._repository = new Repository();
         this._pullRequest = new PullRequest();
 
-        await this._repository.SetupCurrentBranch();
+        await this._repository.setupCurrentBranch();
 
-        const lastReviewedCommit = await this._pullRequest.GetLastReviewedCommitHash();
-        const lastMergedCommit = await this._pullRequest.GetLastMergeSourceCommitHash();
+        const lastReviewedCommit = await this._pullRequest.getLastReviewedCommitHash();
+        const lastMergedCommit = await this._pullRequest.getLastMergeSourceCommitHash();
         const isRequeued = lastReviewedCommit === lastMergedCommit;
 
         if (isRequeued && !allowRequeue) {
@@ -92,7 +92,7 @@ export class Main {
             return;
         }
 
-        const lastCommitFiles = await this._pullRequest.GetCommitFiles(lastMergedCommit);
+        const lastCommitFiles = await this._pullRequest.getCommitFiles(lastMergedCommit);
         console.info('Last commit files', lastCommitFiles);
 
         let filesToReview = filterFilesForReview({
@@ -108,19 +108,19 @@ export class Main {
 
         for (let index = 0; index < filesToReview.length; index++) {
             let fileName = filesToReview[index];
-            let diff = await this._repository.GetDiff(fileName);
+            let diff = await this._repository.getDiff(fileName);
 
             // Get existing comments for the file
-            let existingComments = await this._pullRequest.GetCommentsForFile(fileName);
+            let existingComments = await this._pullRequest.getCommentsForFile(fileName);
             console.info('Existing comments: ' + existingComments.length);
 
             // Perform code review with existing comments
-            let reviewComment = await this._chatGpt.PerformCodeReview(diff, fileName, existingComments);
+            let reviewComment = await this._chatGpt.performCodeReview(diff, fileName, existingComments);
 
             // Add the review comments to the pull request
             if (reviewComment && reviewComment.threads) {
                 for (let thread of reviewComment.threads as any[]) {
-                    await this._pullRequest.AddThread(thread);
+                    await this._pullRequest.addThread(thread);
                 }
             }
 
@@ -128,9 +128,9 @@ export class Main {
             tl.setProgress((fileName.length / 100) * index, 'Performing Code Review');
         }
 
-        await this._pullRequest.SaveLastReviewedCommit(lastMergedCommit);
+        await this._pullRequest.saveLastReviewedCommit(lastMergedCommit);
         tl.setResult(tl.TaskResult.Succeeded, 'Pull Request reviewed.');
     }
 }
 
-Main.Main();
+Main.main();
