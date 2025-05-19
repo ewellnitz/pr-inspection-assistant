@@ -124,7 +124,12 @@ export class ChatGPT {
             let openAi = await this._client.chat.completions.create({
                 messages: [
                     {
-                        role: model == 'o1-preview' || model == 'o1-mini' ? 'assistant' : 'system',
+                        role:
+                            (model.includes('o3') || model.includes('o4'))
+                                ? 'developer'
+                                : (model === 'o1-preview' || model === 'o1-mini')
+                                    ? 'assistant'
+                                    : 'system',
                         content: this.systemMessage,
                     },
                     {
