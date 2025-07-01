@@ -77,10 +77,11 @@ export class Main {
             enableCommentLineCorrection,
             additionalPrompts
         );
-        this._repository = new Repository();
-        this._pullRequest = new PullRequest();
 
+        this._repository = await new Repository().init();
         await this._repository.setupCurrentBranch();
+
+        this._pullRequest = new PullRequest();
 
         const lastReviewedCommit = await this._pullRequest.getLastReviewedCommitHash();
         const lastMergedCommit = await this._pullRequest.getLastMergeSourceCommitHash();

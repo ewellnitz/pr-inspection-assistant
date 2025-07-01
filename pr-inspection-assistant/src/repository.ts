@@ -8,11 +8,19 @@ export class Repository {
     };
 
     private readonly _repository: SimpleGit;
+    private _mergeBase: string | undefined;
 
     constructor() {
         this._repository = simpleGit(this.gitOptions);
         this._repository.addConfig('core.pager', 'cat');
         this._repository.addConfig('core.quotepath', 'false');
+    }
+
+    public async init(): Promise<Repository> {
+        await this._repository.fetch();
+
+        this._mergeBase = await this.getMergeBase();
+        return this;
     }
 
     public async setupCurrentBranch(): Promise<void> {
@@ -31,21 +39,22 @@ export class Repository {
     }
 
     public async getDiff(fileName: string): Promise<string> {
-        const target = await this.getMergeBase();
-        const args = [target, '--', fileName.replace(/^\//, '')];
+        if (!this._mergeBase) {
+            throw new Error('Merge base is not set. Please initialize the repository first.');
+        }
+
+        const args = [this._mergeBase, '--', fileName.replace(/^\//, '')];
         console.info('GetDiff()', args.join(' '));
         const diff = await this._repository.diff(args);
         return diff;
     }
 
     private async getMergeBase(): Promise<string> {
-        // In Azure DevOps, the source should always be HEAD as its current branch is based on a PR merge branch (eg., pull/xxxx/merge).
-        // Changing it to the PR source branch will cause merge-base to be different, which ultimately results in the diff to be incorrect.
-        // TODO: see if we can simplify this by leveraging ADO API to get the merge base or diff
-        const source = tl.isDev() ? this.getSourceBranch() : 'HEAD';
+        const source = this.getSourceBranch();
         const command = ['merge-base', this.getTargetBranch(), source];
+        console.info('GetMergeBase()', command.join(' '));
         const result = (await this._repository.raw(command)).trim();
-        console.info('GetMergeBase()', command.join(' '), `-> ${result}`);
+        console.info('GetMergeBase() result', result);
         return result;
     }
 
