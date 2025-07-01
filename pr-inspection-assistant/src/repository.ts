@@ -8,7 +8,7 @@ export class Repository {
     };
 
     private readonly _repository: SimpleGit;
-    private _mergeBase!: string;
+    private _mergeBase: string | undefined;
 
     constructor() {
         this._repository = simpleGit(this.gitOptions);
@@ -39,6 +39,10 @@ export class Repository {
     }
 
     public async getDiff(fileName: string): Promise<string> {
+        if (!this._mergeBase) {
+            throw new Error('Merge base is not set. Please initialize the repository first.');
+        }
+
         const args = [this._mergeBase, '--', fileName.replace(/^\//, '')];
         console.info('GetDiff()', args.join(' '));
         const diff = await this._repository.diff(args);
