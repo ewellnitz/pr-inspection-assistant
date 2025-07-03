@@ -11,9 +11,42 @@ export class Main {
     private static _pullRequest: PullRequest;
 
     public static async main(): Promise<void> {
+        if (!this.isValidTrigger()) return;
+
+        const inputs = this.getInputValues();
+        this.logInputs(inputs);
+
+        const client = this.createOpenAIClient(inputs);
+        this._chatGpt = this.createChatGptClient(client, inputs);
+
+        await this.initializeRepository();
+
+        this._pullRequest = new PullRequest();
+
+        const { reviewRange, isRequeued } = await this.getReviewRange();
+        if (isRequeued && !inputs.allowRequeue) {
+            console.info(
+                'No new changes detected since last review and requeue is disabled. Skipping pull request review.'
+            );
+            return;
+        }
+
+        const iterationFiles = await this._pullRequest.getIterationFiles(reviewRange);
+        console.info(`Found ${iterationFiles.length} changed files in this run:`, iterationFiles);
+
+        const filesToReview = this.filterFiles(iterationFiles, inputs);
+        console.info(`After filtering, ${filesToReview.length} files will be reviewed:`, filesToReview);
+
+        await this.reviewFiles(filesToReview);
+
+        await this._pullRequest.saveLastReviewedIteration(reviewRange);
+        tl.setResult(tl.TaskResult.Succeeded, 'Pull Request reviewed.');
+    }
+
+    private static isValidTrigger(): boolean {
         if (tl.getVariable('Build.Reason') !== 'PullRequest') {
             tl.setResult(tl.TaskResult.Skipped, 'This task must only be used when triggered by a Pull Request.');
-            return;
+            return false;
         }
 
         if (!tl.getVariable('System.AccessToken')) {
@@ -21,90 +54,96 @@ export class Main {
                 tl.TaskResult.Failed,
                 "'Allow Scripts to Access OAuth Token' must be enabled. See https://learn.microsoft.com/en-us/azure/devops/pipelines/build/options?view=azure-devops#allow-scripts-to-access-the-oauth-token for more information"
             );
-            return;
+            return false;
         }
+        return true;
+    }
 
-        // Get the input values
-        const apiKey = tl.getInput('api_key', true)!;
-        const azureApiEndpoint = tl.getInput('api_endpoint', false)!;
-        const azureApiVersion = tl.getInput('api_version', false)!;
-        const azureModelDeployment = tl.getInput('ai_model', false)!;
-        // Deprecated: Use "file_includes" instead
-        const fileExtensions = tl.getInput('file_extensions', false);
-        // Deprecated: Use "file_excludes" instead
-        const fileExtensionExcludes = tl.getInput('file_extension_excludes', false);
-        const filesToInclude = tl.getInput('file_includes', false);
-        const filesToExclude = tl.getInput('file_excludes', false);
-        const additionalPrompts = tl.getInput('additional_prompts', false)?.split(',');
-        const bugs = tl.getBoolInput('bugs', false);
-        const performance = tl.getBoolInput('performance', false);
-        const bestPractices = tl.getBoolInput('best_practices', false);
-        const modifiedLinesOnly = tl.getBoolInput('modified_lines_only', false);
-        const enableCommentLineCorrection = tl.getBoolInput('comment_line_correction', false);
-        const allowRequeue = tl.getBoolInput('allow_requeue', false);
+    private static getInputValues() {
+        return {
+            apiKey: tl.getInput('api_key', true)!,
+            azureApiEndpoint: tl.getInput('api_endpoint', false)!,
+            azureApiVersion: tl.getInput('api_version', false)!,
+            azureModelDeployment: tl.getInput('ai_model', false)!,
+            fileExtensions: tl.getInput('file_extensions', false),
+            fileExtensionExcludes: tl.getInput('file_extension_excludes', false),
+            filesToInclude: tl.getInput('file_includes', false),
+            filesToExclude: tl.getInput('file_excludes', false),
+            additionalPrompts: tl.getInput('additional_prompts', false)?.split(','),
+            bugs: tl.getBoolInput('bugs', false),
+            performance: tl.getBoolInput('performance', false),
+            bestPractices: tl.getBoolInput('best_practices', false),
+            modifiedLinesOnly: tl.getBoolInput('modified_lines_only', false),
+            enableCommentLineCorrection: tl.getBoolInput('comment_line_correction', false),
+            allowRequeue: tl.getBoolInput('allow_requeue', false),
+        };
+    }
 
-        console.info(`file_extensions: ${fileExtensions}`);
-        console.info(`file_extension_excludes: ${fileExtensionExcludes}`);
-        console.info(`files_include: ${filesToInclude}`);
-        console.info(`file_excludes: ${filesToExclude}`);
-        console.info(`additional_prompts: ${additionalPrompts}`);
-        console.info(`bugs: ${bugs}`);
-        console.info(`performance: ${performance}`);
-        console.info(`best_practices: ${bestPractices}`);
-        console.info(`modified_lines_only: ${modifiedLinesOnly}`);
-        console.info(`azureApiEndpoint: ${azureApiEndpoint}`);
-        console.info(`azureModelDeployment: ${azureModelDeployment}`);
-        console.info(`enableCommentLineCorrection: ${enableCommentLineCorrection}`);
-        console.info(`allowRequeue: ${allowRequeue}`);
+    private static logInputs(inputs: any): void {
+        for (const [key, value] of Object.entries(inputs)) {
+            if (key === 'apiKey') {
+                console.info(`${key}: ***`); // Mask sensitive fields
+            } else {
+                console.info(`${key}: ${value}`);
+            }
+        }
+    }
 
-        const client = azureApiEndpoint
+    private static createOpenAIClient(inputs: any) {
+        return inputs.azureApiEndpoint
             ? new AzureOpenAI({
-                  apiKey: apiKey,
-                  endpoint: azureApiEndpoint,
-                  apiVersion: azureApiVersion,
-                  deployment: azureModelDeployment,
+                  apiKey: inputs.apiKey,
+                  endpoint: inputs.azureApiEndpoint,
+                  apiVersion: inputs.azureApiVersion,
+                  deployment: inputs.azureModelDeployment,
               })
-            : new OpenAI({ apiKey: apiKey });
+            : new OpenAI({ apiKey: inputs.apiKey });
+    }
 
-        // const client = new AzureOpenAI({ apiKey: apiKey, endpoint: azureApiEndpoint, baseURL: `${azureApiEndpoint}/openai/`, apiVersion: azureApiVersion, deployment: azureModelDeployment });
-
-        this._chatGpt = new ChatGPT(
+    private static createChatGptClient(client: any, inputs: any) {
+        return new ChatGPT(
             client,
-            bugs,
-            performance,
-            bestPractices,
-            modifiedLinesOnly,
-            enableCommentLineCorrection,
-            additionalPrompts
+            inputs.bugs,
+            inputs.performance,
+            inputs.bestPractices,
+            inputs.modifiedLinesOnly,
+            inputs.enableCommentLineCorrection,
+            inputs.additionalPrompts
         );
+    }
 
+    private static async initializeRepository() {
         this._repository = await new Repository().init();
         await this._repository.setupCurrentBranch();
+    }
 
-        this._pullRequest = new PullRequest();
+    private static async getReviewRange() {
+        const lastReviewedIteration = await this._pullRequest.getLastReviewedIteration();
+        const latestIterationId = await this._pullRequest.getLatestIterationId();
 
-        const lastReviewedCommit = await this._pullRequest.getLastReviewedCommitHash();
-        const lastMergedCommit = await this._pullRequest.getLastMergeSourceCommitHash();
-        const isRequeued = lastReviewedCommit === lastMergedCommit;
+        let reviewRange = { start: lastReviewedIteration.end, end: latestIterationId };
+        const isRequeued = lastReviewedIteration.end === latestIterationId;
 
-        if (isRequeued && !allowRequeue) {
-            // Prevents PRIA from reviewing again based on last reviewed commit
-            console.info(`Aborting.  Last reviewed commit matches last merged commit: ${lastReviewedCommit}.`);
-            return;
+        console.info(`Is requeued: ${isRequeued}`);
+
+        if (isRequeued) {
+            reviewRange = { ...lastReviewedIteration };
         }
 
-        const lastCommitFiles = await this._pullRequest.getCommitFiles(lastMergedCommit);
-        console.info('Last commit files', lastCommitFiles);
+        return { reviewRange, isRequeued };
+    }
 
-        let filesToReview = filterFilesForReview({
-            fileExtensions,
-            fileExtensionExcludes,
-            filesToInclude,
-            filesToExclude,
-            files: lastCommitFiles,
+    private static filterFiles(iterationFiles: string[], inputs: any) {
+        return filterFilesForReview({
+            fileExtensions: inputs.fileExtensions,
+            fileExtensionExcludes: inputs.fileExtensionExcludes,
+            filesToInclude: inputs.filesToInclude,
+            filesToExclude: inputs.filesToExclude,
+            files: iterationFiles,
         });
+    }
 
-        console.info(`filesToReview: `, filesToReview);
+    private static async reviewFiles(filesToReview: string[]): Promise<void> {
         tl.setProgress(0, 'Performing Code Review');
 
         for (let index = 0; index < filesToReview.length; index++) {
@@ -126,11 +165,8 @@ export class Main {
             }
 
             console.info(`Completed review of file ${fileName}`);
-            tl.setProgress((fileName.length / 100) * index, 'Performing Code Review');
+            tl.setProgress(((index + 1) / filesToReview.length) * 100, 'Performing Code Review');
         }
-
-        await this._pullRequest.saveLastReviewedCommit(lastMergedCommit);
-        tl.setResult(tl.TaskResult.Succeeded, 'Pull Request reviewed.');
     }
 }
 

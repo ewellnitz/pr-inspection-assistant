@@ -3,8 +3,8 @@ import { Agent } from 'https';
 import { AzureDevOps } from './azureDevOps';
 import { GitPullRequest } from './types/azureDevOps/gitPullRequest';
 import { PropertiesCollection } from './types/azureDevOps/propertiesCollection';
-import { GitCommitChanges } from './types/azureDevOps/gitCommitChanges';
-import { GitChangeItem } from './types/azureDevOps/gitChangeItem';
+import { GitPullRequestIterationChanges } from './types/azureDevOps/gitPullRequestIterationChanges';
+import { IterationRange } from './types/iterationRange';
 
 export class PullRequest {
     private _httpsAgent: Agent;
@@ -16,7 +16,7 @@ export class PullRequest {
     private _pullRequest?: GitPullRequest;
     private _ado: AzureDevOps;
 
-    private static readonly PRIA_LAST_REVIEWED_KEY = 'Pria.LastReviewedCommit';
+    private static readonly PRIA_LAST_REVIEWED_KEY = 'Pria.LastReviewedIteration';
 
     constructor() {
         this._httpsAgent = new Agent({
@@ -42,75 +42,64 @@ export class PullRequest {
         return await this._ado.get<GitPullRequest>(endpoint);
     }
 
-    public async getLastMergedCommitHash(): Promise<string> {
-        tl.debug(`Getting last merged commit hash`);
+    public async getLatestIterationId(): Promise<number> {
+        const endpoint = `${this.getPullRequestBaseUri()}/iterations?api-version=7.0`;
+        tl.debug(`Fetching iterations for pull request ${this._pullRequestId}`);
 
-        if (!this._pullRequest) {
-            this._pullRequest = await this.getPullRequest();
+        const iterations = await this._ado.get<{ value: { id: number }[] }>(endpoint);
+        if (!iterations.value || iterations.value.length === 0) {
+            throw new Error(`No iterations found for pull request ${this._pullRequestId}`);
         }
 
-        const result = this._pullRequest.lastMergeCommit.commitId;
-        tl.debug(`Last merged commit hash ${result}`);
+        const latestIteration = Math.max(...iterations.value.map((iteration) => iteration.id));
+        console.info(`Latest iteration ID: ${latestIteration}`);
 
-        return result;
+        return latestIteration;
     }
 
-    public async getLastMergeSourceCommitHash(): Promise<string> {
-        tl.debug(`Getting last merge source commit hash`);
+    public async getIterationFiles({ start, end }: IterationRange): Promise<string[]> {
+        tl.debug(`Getting files for iteration ${start}-${end}`);
 
-        if (!this._pullRequest) {
-            this._pullRequest = await this.getPullRequest();
-        }
+        const endpoint = `${this.getPullRequestBaseUri()}/iterations/${end}/changes?api-version=7.0&$compareTo=${start}`;
+        const result = await this._ado.get<GitPullRequestIterationChanges>(endpoint);
 
-        const result = this._pullRequest.lastMergeSourceCommit.commitId;
-        console.info(`Last merged source commit hash ${result}`);
+        const files = result.changeEntries.map(({ item }) => item.path);
+        tl.debug(`Files in iteration ${start}-${end}: ${JSON.stringify(files)}`);
 
-        return result;
+        return files;
     }
 
-    public async getLastReviewedCommitHash(): Promise<string> {
+    public async getLastReviewedIteration(): Promise<IterationRange> {
         const endpoint = `${this.getPullRequestBaseUri()}/properties?api-version=7.0`;
-
-        tl.debug(`Getting last reviewed commit hash`);
-
         let properties = await this._ado.get<PropertiesCollection>(endpoint);
         const value = properties.value[PullRequest.PRIA_LAST_REVIEWED_KEY]?.$value;
-
-        console.info(`Last reviewed commit hash ${value}`);
-        return value;
+        if (!value) {
+            console.info(`No last reviewed iteration found, returning default range.`);
+            return { start: 0, end: 0 };
+        }
+        const lastReviewedIteration = JSON.parse(value) as IterationRange;
+        console.info(`Last reviewed iteration ${value}`);
+        return lastReviewedIteration;
     }
 
-    public async saveLastReviewedCommit(commitHash: string): Promise<boolean> {
-        tl.debug(`Saving last reviewed commit hash ${commitHash}`);
-
+    public async saveLastReviewedIteration({ start, end }: IterationRange): Promise<boolean> {
+        tl.debug(`Saving last reviewed iteration ${start}-${end}`);
         const endpoint = `${this.getPullRequestBaseUri()}/properties?api-version=7.0`;
         var body = [
             {
                 op: 'replace',
                 path: `/${PullRequest.PRIA_LAST_REVIEWED_KEY}`,
-                value: commitHash,
+                value: JSON.stringify({ start, end } as IterationRange),
             },
         ];
 
         const response = await this._ado.patch(endpoint, body);
         if (!response.ok) {
-            tl.warning(`Failed to save last reviewed commit hash ${commitHash}`);
+            tl.warning(`Failed to save last reviewed iteration ${start}-${end}.`);
         }
+        console.info(`Saved last reviewed iteration ${start}-${end}`);
 
         return response.ok;
-    }
-
-    public async getCommitFiles(commitHash: string): Promise<string[]> {
-        tl.debug(`Getting commit(${commitHash}) files.`);
-
-        const endpoint = `${this.getBaseUri()}/commits/${commitHash}/changes?$api-version=7.0`;
-        const result = await this._ado.get<GitCommitChanges>(endpoint);
-        const files = result.changes
-            .filter(({ item }: { item: GitChangeItem }) => !item.isFolder)
-            .map(({ item }: { item: GitChangeItem }) => item.path);
-        console.info(`Commit files: ${JSON.stringify(files)}`);
-
-        return files;
     }
 
     public async addThread(thread: any): Promise<boolean> {
