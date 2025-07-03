@@ -37,7 +37,6 @@ export class Main {
         const filesToReview = this.filterFiles(iterationFiles, inputs);
         console.info(`After filtering, ${filesToReview.length} files will be reviewed:`, filesToReview);
 
-        tl.setProgress(0, 'Performing Code Review');
         await this.reviewFiles(filesToReview);
 
         await this._pullRequest.saveLastReviewedIteration(reviewRange);
@@ -145,6 +144,8 @@ export class Main {
     }
 
     private static async reviewFiles(filesToReview: string[]): Promise<void> {
+        tl.setProgress(0, 'Performing Code Review');
+
         for (let index = 0; index < filesToReview.length; index++) {
             let fileName = filesToReview[index];
             let diff = await this._repository.getDiff(fileName);
