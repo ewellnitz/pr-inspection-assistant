@@ -9,7 +9,7 @@
     "version": {
         "Major": 2,
         "Minor": 1,
-        "Patch": 33
+        "Patch": 35
     },
     "instanceNameFormat": "PRIA $(message)",
     "inputs": [
