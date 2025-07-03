@@ -82,7 +82,11 @@ export class Main {
 
     private static logInputs(inputs: any): void {
         for (const [key, value] of Object.entries(inputs)) {
-            console.info(`${key}: ${value}`);
+            if (key === 'apiKey') {
+                console.info(`${key}: ***`); // Mask sensitive fields
+            } else {
+                console.info(`${key}: ${value}`);
+            }
         }
     }
 
