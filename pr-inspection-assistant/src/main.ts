@@ -164,7 +164,7 @@ export class Main {
             }
 
             console.info(`Completed review of file ${fileName}`);
-            tl.setProgress((fileName.length / 100) * index, 'Performing Code Review');
+            tl.setProgress(((index + 1) / filesToReview.length) * 100, 'Performing Code Review');
         }
     }
 }
