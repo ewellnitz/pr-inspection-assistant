@@ -8,7 +8,6 @@ export class Repository {
     };
 
     private readonly _repository: SimpleGit;
-    private _mergeBase: string | undefined;
 
     constructor() {
         this._repository = simpleGit(this.gitOptions);
@@ -18,8 +17,6 @@ export class Repository {
 
     public async init(): Promise<Repository> {
         await this._repository.fetch();
-
-        this._mergeBase = await this.getMergeBase();
         return this;
     }
 
@@ -39,33 +36,10 @@ export class Repository {
     }
 
     public async getDiff(fileName: string): Promise<string> {
-        if (!this._mergeBase) {
-            throw new Error('Merge base is not set. Please initialize the repository first.');
-        }
-
-        const args = [this._mergeBase, '--', fileName.replace(/^\//, '')];
+        const args = [this.getTargetBranch(), '--', fileName.replace(/^\//, '')];
         console.info('GetDiff()', args.join(' '));
         const diff = await this._repository.diff(args);
         return diff;
-    }
-
-    private async getMergeBase(): Promise<string> {
-        const source = this.getSourceBranch();
-        const command = ['merge-base', this.getTargetBranch(), source];
-        console.info('GetMergeBase()', command.join(' '));
-        const result = (await this._repository.raw(command)).trim();
-        console.info('GetMergeBase() result', result);
-        return result;
-    }
-
-    private getSourceBranch(): string {
-        // TODO: For Dev mode, see about removing need for System.PullRequest.SourceBranch and get it from PR directly
-        const sourceBranch = tl.getVariable('System.PullRequest.SourceBranch')?.replace('refs/heads/', '');
-        if (!sourceBranch) {
-            throw new Error(`Could not find source branch`);
-        }
-        console.info('GetSourceBranch()', sourceBranch);
-        return `origin/${sourceBranch}`;
     }
 
     private getTargetBranch(): string {
