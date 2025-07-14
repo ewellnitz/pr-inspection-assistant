@@ -63,7 +63,10 @@ export class PullRequest {
         const endpoint = `${this.getPullRequestBaseUri()}/iterations/${end}/changes?api-version=7.0&$compareTo=${start}`;
         const result = await this._ado.get<GitPullRequestIterationChanges>(endpoint);
 
-        const files = result.changeEntries.map(({ item }) => item.path);
+        const files = result.changeEntries
+            .map(({ item }) => item.path)
+            // filter out null paths.  this can happen if file has been deleted
+            .filter((file) => !!file);
         tl.debug(`Files in iteration ${start}-${end}: ${JSON.stringify(files)}`);
 
         return files;
