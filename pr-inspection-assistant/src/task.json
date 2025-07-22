@@ -148,6 +148,9 @@
         },
         "Node16": {
             "target": "main.js"
+        },
+        "Node20_1": {
+            "target": "main.js"
         }
     }
 }
