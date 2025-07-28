@@ -29,6 +29,7 @@ export class ChatGPT {
         - You are provided with the code changes (diff) in a Unified Diff format.
         - You are provided with a file path (fileName).
         - You are provided with existing comments (existingComments) on the file, you must provide any additional code review comments that are not duplicates.
+        - Rate your confidence (confidenceScore) in the likelihood that each code review comment identifies an actual issue, using a scale from 1 to 10, where 1 means very unlikely and 10 means very likely.
         - Do not highlight minor issues and nitpicks.
         ${modifiedLinesOnly ? '- Only comment on modified lines.' : ''}
         ${checkForBugs ? '- If there are any bugs, highlight them.' : ''}
@@ -40,7 +41,7 @@ export class ChatGPT {
         }
         ${additionalPrompts.length > 0 ? additionalPrompts.map((str) => `- ${str}`).join('\n') : ''}`;
 
-        this.systemMessage += `The response should be a single JSON object (without fenced codeblock) and it must use this sample JSON format:
+        this.systemMessage += `The response should be a single Javascript-parsable JSON object (without fenced codeblock) and it must use this sample JSON format:
         {
             "threads": [
                 // Use multiple, separate thread objects for distinct comments at different locations. Line and offset references should be as specific as possible.
@@ -48,7 +49,12 @@ export class ChatGPT {
                     "comments": [
                         {
                             "content": "<Comment in markdown format without markdown fenced codeblock>",
-                            "commentType": 2
+                            "commentType": 2,
+                            "confidenceScore": <integer>,
+                            "confidenceScoreJustification": "<string>",
+                            "fixSuggestion": "<string>", // If you are highly confident (confidenceScore 8-10) that a code sample will fix the issue, provide only the code (no fenced codeblock) and nothing else.
+                            "sufficientContext": boolean, // true if the comment is fully understandable and actionable based only on the provided diff and file context; false if more information is needed
+                            "issueType": "<string>", // e.g. performance, security, best-practice, style, code smell, etc.
                         }
                     ],
                     "status": 1,
@@ -90,7 +96,7 @@ export class ChatGPT {
         console.info(`System prompt:\n${this.systemMessage}`);
     }
 
-    public async performCodeReview(diff: string, fileName: string, existingComments: string[]): Promise<any> {
+    public async performCodeReview(diff: string, fileName: string, existingComments: string[]): Promise<Review> {
         const review = await this.sendRequest(diff, fileName, existingComments);
 
         this._enableCommentLineCorrection && CommentLineNumberAndOffsetFixer.fix(review, diff);
@@ -98,6 +104,8 @@ export class ChatGPT {
     }
 
     private async sendRequest(diff: string, fileName: string, existingComments: string[]): Promise<Review> {
+        const emptyReview: Review = { threads: [] };
+
         if (!fileName.startsWith('/')) {
             fileName = `/${fileName}`;
         }
@@ -140,11 +148,16 @@ export class ChatGPT {
             if (response.length > 0) {
                 let content = response[0].message.content!;
                 console.info(`Comments:\n${content}`);
-                return JSON.parse(content);
+                try {
+                    return JSON.parse(content);
+                } catch (error) {
+                    console.error(`Failed to parse comments for file ${fileName}.  Returning empty review`, error);
+                    return emptyReview;
+                }
             }
         }
         tl.warning(`Unable to process diff for file ${fileName} as it exceeds token limits.`);
-        return { threads: [] };
+        return emptyReview;
     }
 
     private doesMessageExceedTokenLimit(message: string, tokenLimit: number): boolean {

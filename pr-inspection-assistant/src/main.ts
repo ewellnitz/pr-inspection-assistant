@@ -4,6 +4,11 @@ import { Repository } from './repository';
 import { ChatGPT } from './chatGpt';
 import { PullRequest } from './pullRequest';
 import { filterFilesForReview } from './fileUtils';
+import { InputValues } from './types/inputValues';
+import { Thread } from './types/thread';
+import { Comment } from './types/comment';
+import { Review } from './types/review';
+import { ReviewResult } from './types/reviewResult';
 
 export class Main {
     private static _chatGpt: ChatGPT;
@@ -37,7 +42,8 @@ export class Main {
         const filesToReview = this.filterFiles(iterationFiles, inputs);
         console.info(`After filtering, ${filesToReview.length} files will be reviewed:`, filesToReview);
 
-        await this.reviewFiles(filesToReview);
+        const reviewResults = await this.reviewFiles(filesToReview, inputs);
+        await this.processReviewResults(reviewResults, inputs);
 
         await this._pullRequest.saveLastReviewedIteration(reviewRange);
         tl.setResult(tl.TaskResult.Succeeded, 'Pull Request reviewed.');
@@ -59,7 +65,7 @@ export class Main {
         return true;
     }
 
-    private static getInputValues() {
+    private static getInputValues(): InputValues {
         return {
             apiKey: tl.getInput('api_key', true)!,
             azureApiEndpoint: tl.getInput('api_endpoint', false)!,
@@ -76,6 +82,8 @@ export class Main {
             modifiedLinesOnly: tl.getBoolInput('modified_lines_only', false),
             enableCommentLineCorrection: tl.getBoolInput('comment_line_correction', false),
             allowRequeue: tl.getBoolInput('allow_requeue', false),
+            confidenceMode: tl.getBoolInput('confidence_mode', false),
+            confidenceMinimum: parseInt(tl.getInput('confidence_minimum', false) ?? '9', 10),
         };
     }
 
@@ -143,30 +151,122 @@ export class Main {
         });
     }
 
-    private static async reviewFiles(filesToReview: string[]): Promise<void> {
-        tl.setProgress(0, 'Performing Code Review');
+    private static async reviewFiles(filesToReview: string[], inputs: InputValues): Promise<ReviewResult[]> {
+        tl.setProgress(0, 'Step 1: Performing Code Review');
 
+        // Step 1: Collect review results
+        const reviewResults: { fileName: string; codeReview: Review }[] = [];
         for (let index = 0; index < filesToReview.length; index++) {
-            let fileName = filesToReview[index];
-            let diff = await this._repository.getDiff(fileName);
+            const fileName = filesToReview[index];
+            const diff = await this._repository.getDiff(fileName);
 
             // Get existing comments for the file
-            let existingComments = await this._pullRequest.getCommentsForFile(fileName);
+            const existingComments = await this._pullRequest.getCommentsForFile(fileName);
             console.info('Existing comments: ' + existingComments.length);
 
             // Perform code review with existing comments
-            let reviewComment = await this._chatGpt.performCodeReview(diff, fileName, existingComments);
+            const codeReview = await this._chatGpt.performCodeReview(diff, fileName, existingComments);
 
-            // Add the review comments to the pull request
-            if (reviewComment && reviewComment.threads) {
-                for (let thread of reviewComment.threads as any[]) {
+            reviewResults.push({ fileName, codeReview });
+
+            console.info(`Completed review of file ${fileName}`);
+            tl.setProgress(((index + 1) / filesToReview.length) * 50, 'Step 1: Performing Code Review');
+        }
+
+        return reviewResults;
+    }
+
+    private static async processReviewResults(reviewResults: ReviewResult[], inputs: InputValues): Promise<void> {
+        const filteredReviewResults = structuredClone(reviewResults);
+
+        // Step 2: Filter review thread comments and add threads
+        tl.setProgress(50, 'Step 2: Adding Review Threads');
+        for (let index = 0; index < filteredReviewResults.length; index++) {
+            const { codeReview, fileName } = filteredReviewResults[index];
+            if (codeReview && codeReview.threads) {
+                for (const thread of codeReview.threads) {
+                    this.processThread(thread, inputs);
                     await this._pullRequest.addThread(thread);
                 }
             }
-
-            console.info(`Completed review of file ${fileName}`);
-            tl.setProgress(((index + 1) / filesToReview.length) * 100, 'Performing Code Review');
+            console.info(`Completed adding thread for file ${fileName}`);
+            tl.setProgress(50 + ((index + 1) / filteredReviewResults.length) * 50, 'Step 2: Adding Review Threads');
         }
+
+        const summary = this.summarizeReviewResults(reviewResults, filteredReviewResults);
+        this.logReviewSummary(inputs, summary);
+    }
+
+    private static logReviewSummary(
+        inputs: InputValues,
+        summary: { totalComments: number; remainingComments: number; filteredOutComments: number }
+    ) {
+        console.info(`\n${'*'.repeat(50)}`);
+        console.info(`Review Summary:`);
+        console.info(`Confidence mode: ${inputs.confidenceMode}`);
+        console.info(`Confidence minimum: ${inputs.confidenceMinimum}`);
+        console.info(`Total comments: ${summary.totalComments}`);
+        console.info(`Removed comments: ${summary.filteredOutComments}`);
+        console.info(`Remaining comments: ${summary.remainingComments}`);
+    }
+
+    private static summarizeReviewResults(
+        reviewResults: { fileName: string; codeReview: Review }[],
+        filteredReviewResults: { fileName: string; codeReview: Review }[]
+    ): { totalComments: number; remainingComments: number; filteredOutComments: number } {
+        const summary = { totalComments: 0, remainingComments: 0, filteredOutComments: 0 };
+
+        for (let index = 0; index < reviewResults.length; index++) {
+            const reviewResult = reviewResults[index];
+            const filteredReviewResult = filteredReviewResults[index];
+
+            if (reviewResult.codeReview && reviewResult.codeReview.threads) {
+                for (let i = 0; i < reviewResult.codeReview.threads.length; i++) {
+                    const thread = reviewResult.codeReview.threads[i];
+                    const filteredThread = filteredReviewResult.codeReview.threads[i];
+
+                    summary.totalComments += thread.comments.length;
+                    summary.remainingComments += filteredThread.comments.length;
+                    summary.filteredOutComments += thread.comments.length - filteredThread.comments.length;
+                }
+            }
+        }
+        return summary;
+    }
+
+    private static processThread(thread: Thread, inputs: InputValues) {
+        console.info(`Processing thread: ${thread.threadContext.filePath}`);
+        if (inputs.confidenceMode) {
+            const totalComments = thread.comments.length;
+            const { filteredOut, remaining } = this.filterCommentsByConfidence(
+                thread.comments,
+                inputs.confidenceMinimum
+            );
+            thread.comments = remaining;
+
+            this.logThreadComments(totalComments, filteredOut, remaining);
+        }
+    }
+
+    private static filterCommentsByConfidence(comments: Comment[], confidenceMinimum: number) {
+        const filteredOut: Comment[] = [];
+        const remaining: Comment[] = [];
+        comments.forEach((comment) => {
+            if (comment.confidenceScore < confidenceMinimum) {
+                filteredOut.push(comment);
+            } else {
+                remaining.push(comment);
+            }
+        });
+        return { filteredOut, remaining };
+    }
+
+    private static logThreadComments(total: number, filteredOut: Comment[], remaining: Comment[]): void {
+        console.info(`Total comments: ${total}`);
+        console.info(`Filtered out comments (${filteredOut.length}):`);
+        filteredOut.forEach((comment) => console.info(`- [${comment.confidenceScore}] ${comment.content}`));
+        console.info(`Remaining comments (${remaining.length}):`);
+        remaining.forEach((comment) => console.info(`- [${comment.confidenceScore}] ${comment.content}`));
     }
 }
 

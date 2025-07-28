@@ -9,7 +9,7 @@
     "version": {
         "Major": 2,
         "Minor": 1,
-        "Patch": 37
+        "Patch": 38
     },
     "instanceNameFormat": "PRIA $(message)",
     "inputs": [
@@ -135,11 +135,18 @@
             "helpMarkDown": "Correct comment line number and offsets."
         },
         {
-            "name": "allow_requeue",
+            "name": "confidence_mode",
             "type": "boolean",
-            "label": "Allow reviewing on requeues",
+            "label": "Enable confidence mode (Experimental)",
             "defaultValue": false,
-            "helpMarkDown": "Set to true to allow revieiwing on requeues.  Default value is `false`."
+            "helpMarkDown": "Set to true to limit comments to those meeting the minimum confidence score.  Use in combination with the 'Minimum confidence score' input."
+        },
+        {
+            "name": "confidence_minimum",
+            "type": "string",
+            "label": "Minimum confidence score (Experimental)",
+            "defaultValue": "9",
+            "helpMarkDown": "Set the minimum confidence score (1-10) required for comments to appear. Only comments with a confidence score equal to or above this value will be shown."
         }
     ],
     "execution": {

@@ -105,6 +105,10 @@ index 6e260260..204f3ac4 100644
                             content:
                                 'Using `object.ReferenceEquals` to compare strings can lead to incorrect results. Consider using `!=` or `!string.Equals` for value-based comparison.',
                             commentType: 2,
+                            confidenceScore: 5,
+                            confidenceScoreJustification: '',
+                            fixSuggestion: '',
+                            sufficientContext: true,
                         },
                     ],
                     status: 1,
@@ -132,6 +136,10 @@ index 6e260260..204f3ac4 100644
                             content:
                                 'Using `object.ReferenceEquals` to compare strings can lead to incorrect results. Consider using `!=` or `!string.Equals` for value-based comparison.',
                             commentType: 2,
+                            confidenceScore: 5,
+                            confidenceScoreJustification: '',
+                            fixSuggestion: '',
+                            sufficientContext: true,
                         },
                     ],
                     status: 1,
@@ -160,6 +168,10 @@ index 6e260260..204f3ac4 100644
                             content:
                                 'Using `object.ReferenceEquals` to compare strings can lead to incorrect results. Consider using `!=` or `!string.Equals` for value-based comparison.',
                             commentType: 2,
+                            confidenceScore: 5,
+                            confidenceScoreJustification: '',
+                            fixSuggestion: '',
+                            sufficientContext: true,
                         },
                     ],
                     status: 1,
