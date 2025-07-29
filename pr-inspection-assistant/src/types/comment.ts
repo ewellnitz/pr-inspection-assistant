@@ -3,6 +3,6 @@ export interface Comment {
     commentType: number;
     confidenceScore?: number;
     confidenceScoreJustification?: string;
-    fixSuggestion: string;
+    fixSuggestion?: string;
     issueType: string;
 }
