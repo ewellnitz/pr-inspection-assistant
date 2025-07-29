@@ -207,9 +207,9 @@ export class Main {
         console.info(`Confidence minimum: ${inputs.confidenceMinimum}`);
         console.info(`Total comments: ${summary.totalComments}`);
         console.info(
-            `Removed comments: ${summary.filteredOutComments} (${(
-                (summary.filteredOutComments / summary.totalComments) *
-                100
+            `Removed comments: ${summary.filteredOutComments} (${(summary.totalComments === 0
+                ? 0
+                : (summary.filteredOutComments / summary.totalComments) * 100
             ).toFixed(1)}%)`
         );
         console.info(`Remaining comments: ${summary.remainingComments}`);
@@ -225,7 +225,7 @@ export class Main {
             const reviewResult = reviewResults[index];
             const filteredReviewResult = filteredReviewResults[index];
 
-            if (reviewResult.codeReview && reviewResult.codeReview.threads) {
+            if (reviewResult.codeReview?.threads) {
                 for (let i = 0; i < reviewResult.codeReview.threads.length; i++) {
                     const thread = reviewResult.codeReview.threads[i];
                     const filteredThread = filteredReviewResult.codeReview.threads[i];
