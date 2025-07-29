@@ -4,5 +4,5 @@ export interface Comment {
     confidenceScore?: number;
     confidenceScoreJustification?: string;
     fixSuggestion?: string;
-    issueType: string;
+    issueType?: string;
 }
