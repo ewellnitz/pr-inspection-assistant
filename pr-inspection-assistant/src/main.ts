@@ -269,9 +269,9 @@ export class Main {
     private static logThreadComments(total: number, filteredOut: Comment[], remaining: Comment[]): void {
         console.info(`Total comments: ${total}`);
         console.info(`Filtered out comments (${filteredOut.length}):`);
-        filteredOut.forEach((comment) => console.info(`- [${comment.confidenceScore}] ${comment.content}`));
+        filteredOut.forEach((comment) => console.info(`- [${comment.confidenceScore ?? 'N/A'}] ${comment.content}`));
         console.info(`Remaining comments (${remaining.length}):`);
-        remaining.forEach((comment) => console.info(`- [${comment.confidenceScore}] ${comment.content}`));
+        remaining.forEach((comment) => console.info(`- [${comment.confidenceScore ?? 'N/A'}] ${comment.content}`));
     }
 }
 
