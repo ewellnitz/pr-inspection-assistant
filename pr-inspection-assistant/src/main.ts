@@ -257,7 +257,7 @@ export class Main {
         const filteredOut: Comment[] = [];
         const remaining: Comment[] = [];
         comments.forEach((comment) => {
-            if (comment.confidenceScore! < confidenceMinimum) {
+            if (comment.confidenceScore !== undefined && comment.confidenceScore < confidenceMinimum) {
                 filteredOut.push(comment);
             } else {
                 remaining.push(comment);
