@@ -135,6 +135,13 @@
             "helpMarkDown": "Correct comment line number and offsets."
         },
         {
+            "name": "allow_requeue",
+            "type": "boolean",
+            "label": "Allow reviewing on requeues",
+            "defaultValue": false,
+            "helpMarkDown": "Set to true to allow reviewing on requeues.  Default value is `false`."
+        },
+        {
             "name": "confidence_mode",
             "type": "boolean",
             "label": "Enable confidence mode (Experimental)",

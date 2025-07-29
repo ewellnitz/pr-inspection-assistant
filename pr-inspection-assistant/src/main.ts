@@ -116,7 +116,8 @@ export class Main {
             inputs.bestPractices,
             inputs.modifiedLinesOnly,
             inputs.enableCommentLineCorrection,
-            inputs.additionalPrompts
+            inputs.additionalPrompts,
+            inputs.confidenceMode
         );
     }
 
@@ -189,7 +190,6 @@ export class Main {
                     await this._pullRequest.addThread(thread);
                 }
             }
-            console.info(`Completed adding thread for file ${fileName}`);
             tl.setProgress(50 + ((index + 1) / filteredReviewResults.length) * 50, 'Step 2: Adding Review Threads');
         }
 
@@ -206,7 +206,12 @@ export class Main {
         console.info(`Confidence mode: ${inputs.confidenceMode}`);
         console.info(`Confidence minimum: ${inputs.confidenceMinimum}`);
         console.info(`Total comments: ${summary.totalComments}`);
-        console.info(`Removed comments: ${summary.filteredOutComments}`);
+        console.info(
+            `Removed comments: ${summary.filteredOutComments} (${(
+                (summary.filteredOutComments / summary.totalComments) *
+                100
+            ).toFixed(1)}%)`
+        );
         console.info(`Remaining comments: ${summary.remainingComments}`);
     }
 
@@ -252,7 +257,7 @@ export class Main {
         const filteredOut: Comment[] = [];
         const remaining: Comment[] = [];
         comments.forEach((comment) => {
-            if (comment.confidenceScore < confidenceMinimum) {
+            if (comment.confidenceScore! < confidenceMinimum) {
                 filteredOut.push(comment);
             } else {
                 remaining.push(comment);

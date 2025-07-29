@@ -20,7 +20,8 @@ export class ChatGPT {
         checkForBestPractices: boolean = false,
         modifiedLinesOnly: boolean = true,
         enableCommentLineCorrection = false,
-        additionalPrompts: string[] = []
+        additionalPrompts: string[] = [],
+        enableConfidenceMode: boolean = false
     ) {
         this._client = client; // Assign to private field
         this._enableCommentLineCorrection = enableCommentLineCorrection;
@@ -29,8 +30,12 @@ export class ChatGPT {
         - You are provided with the code changes (diff) in a Unified Diff format.
         - You are provided with a file path (fileName).
         - You are provided with existing comments (existingComments) on the file, you must provide any additional code review comments that are not duplicates.
-        - Rate your confidence (confidenceScore) in the likelihood that each code review comment identifies an actual issue, using a scale from 1 to 10, where 1 means very unlikely and 10 means very likely.
         - Do not highlight minor issues and nitpicks.
+        ${
+            enableConfidenceMode
+                ? '- For each code review comment you generate, include a (confidenceScore) field that rates your confidence in the likelihood that the comment identifies an actionable issue. Use a scale from 1 to 10, where 1 means very unlikely and 10 means very likely.'
+                : ''
+        }
         ${modifiedLinesOnly ? '- Only comment on modified lines.' : ''}
         ${checkForBugs ? '- If there are any bugs, highlight them.' : ''}
         ${checkForPerformance ? '- If there are major performance problems, highlight them.' : ''}
@@ -41,7 +46,7 @@ export class ChatGPT {
         }
         ${additionalPrompts.length > 0 ? additionalPrompts.map((str) => `- ${str}`).join('\n') : ''}`;
 
-        this.systemMessage += `The response should be a single Javascript-parsable JSON object (without fenced codeblock) and it must use this sample JSON format:
+        this.systemMessage += `The response should be a single JSON object (without fenced codeblock) and it must use this sample JSON format:
         {
             "threads": [
                 // Use multiple, separate thread objects for distinct comments at different locations. Line and offset references should be as specific as possible.
@@ -50,35 +55,34 @@ export class ChatGPT {
                         {
                             "content": "<Comment in markdown format without markdown fenced codeblock>",
                             "commentType": 2,
-                            "confidenceScore": <integer>,
-                            "confidenceScoreJustification": "<string>",
-                            "fixSuggestion": "<string>", // If you are highly confident (confidenceScore 8-10) that a code sample will fix the issue, provide only the code (no fenced codeblock) and nothing else.
-                            "sufficientContext": boolean, // true if the comment is fully understandable and actionable based only on the provided diff and file context; false if more information is needed
-                            "issueType": "<string>", // e.g. performance, security, best-practice, style, code smell, etc.
+                            ${enableConfidenceMode ? '"confidenceScore": <integer>,' : ''}
+                            ${enableConfidenceMode ? '"confidenceScoreJustification": "<string>",' : ''}
+                            "fixSuggestion": "<string: If there is code that can replace the original code and fix the commented issue, provide only the replacement code (no explanations, no comments, and no code fences)>",
+                            "issueType": "<string: E.g. performance, security, best-practice, style, code smell, etc.>"
                         }
                     ],
                     "status": 1,
                     "threadContext": {
-                        "filePath": "<string>", //path to file
+                        "filePath": "<string: path to file>",
                         //only include leftFile properties for suggestions on unmodified lines
                         "leftFileStart": {
-                            "line": <integer>, //line where the suggestion starts
-                            "offset": <integer>, //character offset where the suggestion starts
+                            "line": <integer: line where the suggestion starts>,
+                            "offset": <integer: character offset where the suggestion starts>,
                             "snippet": "<code snippet for suggestion>"
                         },
                         "leftFileEnd": {
-                            "line": <integer>, //line where the suggestion ends
-                            "offset": <integer>, //character offset where the suggestion ends
+                            "line": <integer: line where the suggestion ends>,
+                            "offset": <integer: character offset where the suggestion ends>
                         },
                         //only use rightFile properties if the line changed in the diff
                         "rightFileStart": {
-                            "line": <integer>, //line where the suggestion starts
+                            "line": <integer: line where the suggestion starts>,
                             "snippet": "<code snippet for suggestion>",
-                            "offset": <integer>, //character offset where the suggestion starts
+                            "offset": <integer: character offset where the suggestion starts>
                         },
                         "rightFileEnd": {
-                            "line": <integer>, //line where the suggestion ends
-                            "offset": <integer>, //character offset where the suggestion ends
+                            "line": <integer: line where the suggestion ends>,
+                            "offset": <integer: character offset where the suggestion ends>
                         }
                     },
                     // Commenting out these for now as they're not working correctly and causes comments to be added to wrong files
@@ -125,7 +129,6 @@ export class ChatGPT {
         };
 
         let prompt = JSON.stringify(userPrompt, null, 4);
-        console.info(`Model: ${model}`);
         console.info(`Diff:\n${diff}`);
         // console.info(`Prompt:\n${prompt}`);
         if (!this.doesMessageExceedTokenLimit(this.systemMessage + prompt, this.maxTokens)) {
