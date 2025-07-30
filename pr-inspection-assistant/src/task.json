@@ -9,7 +9,7 @@
     "version": {
         "Major": 2,
         "Minor": 1,
-        "Patch": 42
+        "Patch": 44
     },
     "instanceNameFormat": "PRIA $(message)",
     "inputs": [
@@ -41,11 +41,13 @@
             "name": "ai_model",
             "type": "pickList",
             "label": "OpenAI API Model",
-            "defaultValue": "o3-mini",
+            "defaultValue": "o4-mini",
             "options": {
+                "o4-mini": "o4-mini",
                 "o3-mini": "o3-mini",
                 "o1-mini": "o1-mini",
                 "o1-preview": "o1-preview",
+                "o1": "o1",
                 "gpt-4o": "gpt-4o",
                 "gpt-4": "gpt-4",
                 "gpt-3.5-turbo": "gpt-3.5-turbo"
