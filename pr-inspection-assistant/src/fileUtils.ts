@@ -26,7 +26,10 @@ export function filterFilesForReview({
 
         filesToReview = filesToReview.filter((file) => {
             const fileExtension = getFileExtension(file);
-            return fileExtensionsToInclude.includes(fileExtension) || micromatch.isMatch(file, fileToIncludeGlob);
+            return (
+                fileExtensionsToInclude.includes(fileExtension) ||
+                micromatch.isMatch(file, fileToIncludeGlob, { nocase: true })
+            );
         });
     }
 
@@ -37,7 +40,10 @@ export function filterFilesForReview({
 
         filesToReview = filesToReview.filter((file) => {
             const fileExtension = getFileExtension(file);
-            return !fileExtensionsToExclude.includes(fileExtension) && !micromatch.isMatch(file, filesToExcludeGlob);
+            return (
+                !fileExtensionsToExclude.includes(fileExtension) &&
+                !micromatch.isMatch(file, filesToExcludeGlob, { nocase: true })
+            );
         });
     }
 

@@ -4,6 +4,7 @@ import { Repository } from './repository';
 import { ChatGPT } from './chatGpt';
 import { PullRequest } from './pullRequest';
 import { filterFilesForReview } from './fileUtils';
+import { Logger } from './logger';
 import { InputValues } from './types/inputValues';
 import { Thread } from './types/thread';
 import { Comment } from './types/comment';
@@ -30,23 +31,24 @@ export class Main {
 
         const { reviewRange, isRequeued } = await this.getReviewRange();
         if (isRequeued && !inputs.allowRequeue) {
-            console.info(
+            Logger.info(
                 'No new changes detected since last review and requeue is disabled. Skipping pull request review.'
             );
             return;
         }
 
         const iterationFiles = await this._pullRequest.getIterationFiles(reviewRange);
-        console.info(`Found ${iterationFiles.length} changed files in this run:`, iterationFiles);
+        Logger.info(`Found ${iterationFiles.length} changed files in this run:`, iterationFiles);
 
         const filesToReview = this.filterFiles(iterationFiles, inputs);
-        console.info(`After filtering, ${filesToReview.length} files will be reviewed:`, filesToReview);
+        Logger.info(`After filtering, ${filesToReview.length} files will be reviewed:`, filesToReview);
 
         const reviewResults = await this.reviewFiles(filesToReview, inputs);
         await this.processReviewResults(reviewResults, inputs);
 
         await this._pullRequest.saveLastReviewedIteration(reviewRange);
         tl.setResult(tl.TaskResult.Succeeded, 'Pull Request reviewed.');
+        Logger.info('Pull Request review completed successfully.');
     }
 
     private static isValidTrigger(): boolean {
@@ -90,9 +92,9 @@ export class Main {
     private static logInputs(inputs: any): void {
         for (const [key, value] of Object.entries(inputs)) {
             if (key === 'apiKey') {
-                console.info(`${key}: ***`); // Mask sensitive fields
+                Logger.info(`${key}: ***`); // Mask sensitive fields
             } else {
-                console.info(`${key}: ${value}`);
+                Logger.info(`${key}: ${value}`);
             }
         }
     }
@@ -133,7 +135,7 @@ export class Main {
         let reviewRange = { start: lastReviewedIteration.end, end: latestIterationId };
         const isRequeued = lastReviewedIteration.end === latestIterationId;
 
-        console.info(`Is requeued: ${isRequeued}`);
+        Logger.info(`Is requeued: ${isRequeued}`);
 
         if (isRequeued) {
             reviewRange = { ...lastReviewedIteration };
@@ -154,43 +156,55 @@ export class Main {
 
     private static async reviewFiles(filesToReview: string[], inputs: InputValues): Promise<ReviewResult[]> {
         tl.setProgress(0, 'Step 1: Performing Code Review');
+        Logger.info('Starting code review process...');
 
         // Step 1: Collect review results
         const reviewResults: { fileName: string; codeReview: Review }[] = [];
         for (let index = 0; index < filesToReview.length; index++) {
             const fileName = filesToReview[index];
+            Logger.info(`Reviewing file ${index + 1}/${filesToReview.length}: ${fileName}`);
+
             const diff = await this._repository.getDiff(fileName);
 
             // Get existing comments for the file
             const existingComments = await this._pullRequest.getCommentsForFile(fileName);
-            console.info('Existing comments: ' + existingComments.length);
+            Logger.info('Existing comments: ' + existingComments.length);
 
             // Perform code review with existing comments
             const codeReview = await this._chatGpt.performCodeReview(diff, fileName, existingComments);
 
             reviewResults.push({ fileName, codeReview });
 
-            console.info(`Completed review of file ${fileName}`);
-            tl.setProgress(((index + 1) / filesToReview.length) * 50, 'Step 1: Performing Code Review');
+            Logger.info(`Completed review of file ${fileName}`);
+            const progressPercent = ((index + 1) / filesToReview.length) * 50;
+            tl.setProgress(progressPercent, `Step 1: Performing Code Review (${index + 1}/${filesToReview.length})`);
         }
 
         return reviewResults;
     }
 
     private static async processReviewResults(reviewResults: ReviewResult[], inputs: InputValues): Promise<void> {
-        const filteredReviewResults = structuredClone(reviewResults);
+        const filteredReviewResults = JSON.parse(JSON.stringify(reviewResults));
 
         // Step 2: Filter review thread comments and add threads
         tl.setProgress(50, 'Step 2: Adding Review Threads');
+        Logger.info('Starting to process review results and add threads...');
+
         for (let index = 0; index < filteredReviewResults.length; index++) {
             const { codeReview, fileName } = filteredReviewResults[index];
+            Logger.info(`Processing threads for file ${index + 1}/${filteredReviewResults.length}: ${fileName}`);
+
             if (codeReview && codeReview.threads) {
                 for (const thread of codeReview.threads) {
                     this.processThread(thread, inputs);
                     await this._pullRequest.addThread(thread);
                 }
             }
-            tl.setProgress(50 + ((index + 1) / filteredReviewResults.length) * 50, 'Step 2: Adding Review Threads');
+            const progressPercent = 50 + ((index + 1) / filteredReviewResults.length) * 50;
+            tl.setProgress(
+                progressPercent,
+                `Step 2: Adding Review Threads (${index + 1}/${filteredReviewResults.length})`
+            );
         }
 
         const summary = this.summarizeReviewResults(reviewResults, filteredReviewResults);
@@ -201,18 +215,18 @@ export class Main {
         inputs: InputValues,
         summary: { totalComments: number; remainingComments: number; filteredOutComments: number }
     ) {
-        console.info(`\n${'*'.repeat(50)}`);
-        console.info(`Review Summary:`);
-        console.info(`Confidence mode: ${inputs.confidenceMode}`);
-        console.info(`Confidence minimum: ${inputs.confidenceMinimum}`);
-        console.info(`Total comments: ${summary.totalComments}`);
-        console.info(
+        Logger.info(`\n${'*'.repeat(50)}`);
+        Logger.info(`Review Summary:`);
+        Logger.info(`Confidence mode: ${inputs.confidenceMode}`);
+        Logger.info(`Confidence minimum: ${inputs.confidenceMinimum}`);
+        Logger.info(`Total comments: ${summary.totalComments}`);
+        Logger.info(
             `Removed comments: ${summary.filteredOutComments} (${(summary.totalComments === 0
                 ? 0
                 : (summary.filteredOutComments / summary.totalComments) * 100
             ).toFixed(1)}%)`
         );
-        console.info(`Remaining comments: ${summary.remainingComments}`);
+        Logger.info(`Remaining comments: ${summary.remainingComments}`);
     }
 
     private static summarizeReviewResults(
@@ -240,7 +254,7 @@ export class Main {
     }
 
     private static processThread(thread: Thread, inputs: InputValues) {
-        console.info(`Processing thread: ${thread.threadContext.filePath}`);
+        Logger.info(`Processing thread: ${thread.threadContext.filePath}`);
         if (inputs.confidenceMode) {
             const totalComments = thread.comments.length;
             const { filteredOut, remaining } = this.filterCommentsByConfidence(
@@ -267,11 +281,11 @@ export class Main {
     }
 
     private static logThreadComments(total: number, filteredOut: Comment[], remaining: Comment[]): void {
-        console.info(`Total comments: ${total}`);
-        console.info(`Filtered out comments (${filteredOut.length}):`);
-        filteredOut.forEach((comment) => console.info(`- [${comment.confidenceScore ?? 'N/A'}] ${comment.content}`));
-        console.info(`Remaining comments (${remaining.length}):`);
-        remaining.forEach((comment) => console.info(`- [${comment.confidenceScore ?? 'N/A'}] ${comment.content}`));
+        Logger.info(`Total comments: ${total}`);
+        Logger.info(`Filtered out comments (${filteredOut.length}):`);
+        filteredOut.forEach((comment) => Logger.info(`- [${comment.confidenceScore ?? 'N/A'}] ${comment.content}`));
+        Logger.info(`Remaining comments (${remaining.length}):`);
+        remaining.forEach((comment) => Logger.info(`- [${comment.confidenceScore ?? 'N/A'}] ${comment.content}`));
     }
 }
 

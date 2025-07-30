@@ -1,10 +1,12 @@
 import tl from './taskWrapper';
+import { Logger } from './logger';
 import { Agent } from 'https';
 import { AzureDevOps } from './azureDevOps';
 import { GitPullRequest } from './types/azureDevOps/gitPullRequest';
 import { PropertiesCollection } from './types/azureDevOps/propertiesCollection';
 import { GitPullRequestIterationChanges } from './types/azureDevOps/gitPullRequestIterationChanges';
 import { IterationRange } from './types/iterationRange';
+import { Thread } from './types/thread';
 
 export class PullRequest {
     private _httpsAgent: Agent;
@@ -52,7 +54,7 @@ export class PullRequest {
         }
 
         const latestIteration = Math.max(...iterations.value.map((iteration) => iteration.id));
-        console.info(`Latest iteration ID: ${latestIteration}`);
+        Logger.info(`Latest iteration ID: ${latestIteration}`);
 
         return latestIteration;
     }
@@ -77,11 +79,11 @@ export class PullRequest {
         let properties = await this._ado.get<PropertiesCollection>(endpoint);
         const value = properties.value[PullRequest.PRIA_LAST_REVIEWED_KEY]?.$value;
         if (!value) {
-            console.info(`No last reviewed iteration found, returning default range.`);
+            Logger.info(`No last reviewed iteration found, returning default range.`);
             return { start: 0, end: 0 };
         }
         const lastReviewedIteration = JSON.parse(value) as IterationRange;
-        console.info(`Last reviewed iteration ${value}`);
+        Logger.info(`Last reviewed iteration ${value}`);
         return lastReviewedIteration;
     }
 
@@ -100,12 +102,17 @@ export class PullRequest {
         if (!response.ok) {
             tl.warning(`Failed to save last reviewed iteration ${start}-${end}.`);
         }
-        console.info(`Saved last reviewed iteration ${start}-${end}`);
+        Logger.info(`Saved last reviewed iteration ${start}-${end}`);
 
         return response.ok;
     }
 
-    public async addThread(thread: any): Promise<boolean> {
+    public async addThread(thread: Thread): Promise<boolean> {
+        if (!thread.comments.length) {
+            Logger.info(`No comments to add for thread. Skipping.`);
+            return false;
+        }
+
         const endpoint = `${this.getPullRequestBaseUri()}/threads?api-version=7.0`;
         const response = await this._ado.post(endpoint, thread);
 
@@ -204,14 +211,14 @@ export class PullRequest {
         const threads = await this.getThreads();
         const comments: string[] = [];
 
-        console.info(`fileName: ${fileName}`);
-        console.info(`collectionName: ${collectionName}`);
-        console.info(`buildServiceName: ${buildServiceName}`);
-        console.info(`thread count: ${threads.length}`);
+        Logger.info(`fileName: ${fileName}`);
+        Logger.info(`collectionName: ${collectionName}`);
+        Logger.info(`buildServiceName: ${buildServiceName}`);
+        Logger.info(`thread count: ${threads.length}`);
 
         for (let thread of threads as any[]) {
             if (thread.threadContext)
-                tl.isVerboseLoggingEnabled() && console.info(`Thread filePath: ${thread.threadContext.filePath}`);
+                tl.isVerboseLoggingEnabled() && Logger.info(`Thread filePath: ${thread.threadContext.filePath}`);
             if (thread.threadContext && thread.threadContext.filePath === fileName) {
                 const threadComments = await this.getComments(thread);
                 //TODO: this filter is not working in all envrionments
