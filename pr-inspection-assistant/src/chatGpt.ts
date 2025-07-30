@@ -154,7 +154,10 @@ export class ChatGPT {
                 try {
                     return JSON.parse(content);
                 } catch (error) {
-                    console.error(`Failed to parse comments for file ${fileName}.  Returning empty review`, error);
+                    console.error(
+                        `Failed to parse review response for file ${fileName}.  Returning empty review`,
+                        error
+                    );
                     return emptyReview;
                 }
             }
