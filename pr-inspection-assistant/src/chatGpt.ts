@@ -20,7 +20,8 @@ export class ChatGPT {
         checkForBestPractices: boolean = false,
         modifiedLinesOnly: boolean = true,
         enableCommentLineCorrection = false,
-        additionalPrompts: string[] = []
+        additionalPrompts: string[] = [],
+        enableConfidenceMode: boolean = false
     ) {
         this._client = client; // Assign to private field
         this._enableCommentLineCorrection = enableCommentLineCorrection;
@@ -30,6 +31,11 @@ export class ChatGPT {
         - You are provided with a file path (fileName).
         - You are provided with existing comments (existingComments) on the file, you must provide any additional code review comments that are not duplicates.
         - Do not highlight minor issues and nitpicks.
+        ${
+            enableConfidenceMode
+                ? '- For each code review comment you generate, include a (confidenceScore) field that rates your confidence in the likelihood that the comment identifies an actionable issue. Use a scale from 1 to 10, where 1 means very unlikely and 10 means very likely.'
+                : ''
+        }
         ${modifiedLinesOnly ? '- Only comment on modified lines.' : ''}
         ${checkForBugs ? '- If there are any bugs, highlight them.' : ''}
         ${checkForPerformance ? '- If there are major performance problems, highlight them.' : ''}
@@ -48,31 +54,35 @@ export class ChatGPT {
                     "comments": [
                         {
                             "content": "<Comment in markdown format without markdown fenced codeblock>",
-                            "commentType": 2
+                            "commentType": 2,
+                            ${enableConfidenceMode ? '"confidenceScore": <integer>,' : ''}
+                            ${enableConfidenceMode ? '"confidenceScoreJustification": "<string>",' : ''}
+                            "fixSuggestion": "<string: If there is code that can replace the original code and fix the commented issue, provide only the replacement code (no explanations, no comments, and no code fences)>",
+                            "issueType": "<string: E.g. performance, security, best-practice, style, code smell, etc.>"
                         }
                     ],
                     "status": 1,
                     "threadContext": {
-                        "filePath": "<string>", //path to file
+                        "filePath": "<string: path to file>",
                         //only include leftFile properties for suggestions on unmodified lines
                         "leftFileStart": {
-                            "line": <integer>, //line where the suggestion starts
-                            "offset": <integer>, //character offset where the suggestion starts
+                            "line": <integer: line where the suggestion starts>,
+                            "offset": <integer: character offset where the suggestion starts>,
                             "snippet": "<code snippet for suggestion>"
                         },
                         "leftFileEnd": {
-                            "line": <integer>, //line where the suggestion ends
-                            "offset": <integer>, //character offset where the suggestion ends
+                            "line": <integer: line where the suggestion ends>,
+                            "offset": <integer: character offset where the suggestion ends>
                         },
                         //only use rightFile properties if the line changed in the diff
                         "rightFileStart": {
-                            "line": <integer>, //line where the suggestion starts
+                            "line": <integer: line where the suggestion starts>,
                             "snippet": "<code snippet for suggestion>",
-                            "offset": <integer>, //character offset where the suggestion starts
+                            "offset": <integer: character offset where the suggestion starts>
                         },
                         "rightFileEnd": {
-                            "line": <integer>, //line where the suggestion ends
-                            "offset": <integer>, //character offset where the suggestion ends
+                            "line": <integer: line where the suggestion ends>,
+                            "offset": <integer: character offset where the suggestion ends>
                         }
                     },
                     // Commenting out these for now as they're not working correctly and causes comments to be added to wrong files
@@ -90,7 +100,7 @@ export class ChatGPT {
         console.info(`System prompt:\n${this.systemMessage}`);
     }
 
-    public async performCodeReview(diff: string, fileName: string, existingComments: string[]): Promise<any> {
+    public async performCodeReview(diff: string, fileName: string, existingComments: string[]): Promise<Review> {
         const review = await this.sendRequest(diff, fileName, existingComments);
 
         this._enableCommentLineCorrection && CommentLineNumberAndOffsetFixer.fix(review, diff);
@@ -98,6 +108,8 @@ export class ChatGPT {
     }
 
     private async sendRequest(diff: string, fileName: string, existingComments: string[]): Promise<Review> {
+        const emptyReview: Review = { threads: [] };
+
         if (!fileName.startsWith('/')) {
             fileName = `/${fileName}`;
         }
@@ -117,7 +129,6 @@ export class ChatGPT {
         };
 
         let prompt = JSON.stringify(userPrompt, null, 4);
-        console.info(`Model: ${model}`);
         console.info(`Diff:\n${diff}`);
         // console.info(`Prompt:\n${prompt}`);
         if (!this.doesMessageExceedTokenLimit(this.systemMessage + prompt, this.maxTokens)) {
@@ -140,11 +151,19 @@ export class ChatGPT {
             if (response.length > 0) {
                 let content = response[0].message.content!;
                 console.info(`Comments:\n${content}`);
-                return JSON.parse(content);
+                try {
+                    return JSON.parse(content);
+                } catch (error) {
+                    console.error(
+                        `Failed to parse review response for file ${fileName}.  Returning empty review`,
+                        error
+                    );
+                    return emptyReview;
+                }
             }
         }
         tl.warning(`Unable to process diff for file ${fileName} as it exceeds token limits.`);
-        return { threads: [] };
+        return emptyReview;
     }
 
     private doesMessageExceedTokenLimit(message: string, tokenLimit: number): boolean {
