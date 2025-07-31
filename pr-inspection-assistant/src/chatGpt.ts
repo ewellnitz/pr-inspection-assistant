@@ -115,9 +115,11 @@ export class ChatGPT {
         }
         let model = tl.getInput('ai_model', true) as
             | (string & {})
+            | 'o4-mini'
             | 'o3-mini'
             | 'o1-mini'
             | 'o1-preview'
+            | 'o1'
             | 'gpt-4o'
             | 'gpt-4'
             | 'gpt-3.5-turbo';
@@ -136,11 +138,11 @@ export class ChatGPT {
                 messages: [
                     {
                         role:
-                            (model.includes('o3') || model.includes('o4'))
+                            model.includes('o3') || model.includes('o4')
                                 ? 'developer'
-                                : (model === 'o1-preview' || model === 'o1-mini')
-                                    ? 'assistant'
-                                    : 'system',
+                                : model === 'o1-preview' || model === 'o1-mini'
+                                ? 'assistant'
+                                : 'system',
                         content: this.systemMessage,
                     },
                     {
