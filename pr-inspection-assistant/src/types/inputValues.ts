@@ -16,4 +16,6 @@ export interface InputValues {
     allowRequeue: boolean;
     confidenceMode: boolean;
     confidenceMinimum: number;
+    dedupeAcrossFiles: boolean;
+    dedupeAcrossFilesThreshold: number;
 }

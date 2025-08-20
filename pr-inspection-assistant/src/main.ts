@@ -6,6 +6,7 @@ import { PullRequest } from './pullRequest';
 import { filterFilesForReview } from './fileUtils';
 import { Logger } from './logger';
 import { InputValues } from './types/inputValues';
+import { InputManager } from './inputManager';
 import { Thread } from './types/thread';
 import { Comment } from './types/comment';
 import { Review } from './types/review';
@@ -15,12 +16,12 @@ export class Main {
     private static _chatGpt: ChatGPT;
     private static _repository: Repository;
     private static _pullRequest: PullRequest;
+    private static deduplicationCriteriaMet: boolean;
 
     public static async main(): Promise<void> {
         if (!this.isValidTrigger()) return;
 
-        const inputs = this.getInputValues();
-        this.logInputs(inputs);
+        const inputs = InputManager.inputs;
 
         const client = this.createOpenAIClient(inputs);
         this._chatGpt = this.createChatGptClient(client, inputs);
@@ -65,38 +66,6 @@ export class Main {
             return false;
         }
         return true;
-    }
-
-    private static getInputValues(): InputValues {
-        return {
-            apiKey: tl.getInput('api_key', true)!,
-            azureApiEndpoint: tl.getInput('api_endpoint', false)!,
-            azureApiVersion: tl.getInput('api_version', false)!,
-            azureModelDeployment: tl.getInput('ai_model', false)!,
-            fileExtensions: tl.getInput('file_extensions', false),
-            fileExtensionExcludes: tl.getInput('file_extension_excludes', false),
-            filesToInclude: tl.getInput('file_includes', false),
-            filesToExclude: tl.getInput('file_excludes', false),
-            additionalPrompts: tl.getInput('additional_prompts', false)?.split(','),
-            bugs: tl.getBoolInput('bugs', false),
-            performance: tl.getBoolInput('performance', false),
-            bestPractices: tl.getBoolInput('best_practices', false),
-            modifiedLinesOnly: tl.getBoolInput('modified_lines_only', false),
-            enableCommentLineCorrection: tl.getBoolInput('comment_line_correction', false),
-            allowRequeue: tl.getBoolInput('allow_requeue', false),
-            confidenceMode: tl.getBoolInput('confidence_mode', false),
-            confidenceMinimum: parseInt(tl.getInput('confidence_minimum', false) ?? '9', 10),
-        };
-    }
-
-    private static logInputs(inputs: any): void {
-        for (const [key, value] of Object.entries(inputs)) {
-            if (key === 'apiKey') {
-                Logger.info(`${key}: ***`); // Mask sensitive fields
-            } else {
-                Logger.info(`${key}: ${value}`);
-            }
-        }
     }
 
     private static createOpenAIClient(inputs: any) {
@@ -160,27 +129,68 @@ export class Main {
 
         // Step 1: Collect review results
         const reviewResults: { fileName: string; codeReview: Review }[] = [];
-        for (let index = 0; index < filesToReview.length; index++) {
-            const fileName = filesToReview[index];
+
+        // Used for collecting all comments generated for the current review run
+        let currentRunComments: Comment[] = [];
+
+        for (const [index, fileName] of filesToReview.entries()) {
             Logger.info(`Reviewing file ${index + 1}/${filesToReview.length}: ${fileName}`);
 
             const diff = await this._repository.getDiff(fileName);
+            const existingFileComments = await this._pullRequest.getCommentsForFile(fileName);
+            const commentsForExclusion = this.getCommentContentForExclusion(
+                existingFileComments,
+                currentRunComments,
+                inputs
+            );
 
-            // Get existing comments for the file
-            const existingComments = await this._pullRequest.getCommentsForFile(fileName);
-            Logger.info('Existing comments: ' + existingComments.length);
+            Logger.info('File comments: ' + existingFileComments.length);
+            Logger.info('Current run comments: ' + currentRunComments.length);
+            Logger.info('Comments for exclusion: ' + commentsForExclusion.length, commentsForExclusion);
 
-            // Perform code review with existing comments
-            const codeReview = await this._chatGpt.performCodeReview(diff, fileName, existingComments);
+            const codeReview = await this._chatGpt.performCodeReview(diff, fileName, commentsForExclusion);
+
+            // Flatten and collect new comments from this review
+            const newComments = codeReview.threads.flatMap((thread) => thread.comments);
+            currentRunComments.push(...newComments);
 
             reviewResults.push({ fileName, codeReview });
 
-            Logger.info(`Completed review of file ${fileName}`);
             const progressPercent = ((index + 1) / filesToReview.length) * 50;
             tl.setProgress(progressPercent, `Step 1: Performing Code Review (${index + 1}/${filesToReview.length})`);
+            Logger.info(`Completed review of file ${fileName}`);
         }
 
         return reviewResults;
+    }
+
+    // Helper for deduplication logic
+    private static getCommentContentForExclusion(
+        fileComments: Comment[],
+        runComments: Comment[],
+        inputs: InputValues
+    ): string[] {
+        let commentsForExclusion = [...fileComments];
+        if (inputs.dedupeAcrossFiles) {
+            if (!this.deduplicationCriteriaMet) {
+                const currentRunCommentCount = this.filterCommentsByConfidence(runComments, inputs.confidenceMinimum)
+                    .remaining.length;
+
+                Logger.info('Deduplicate comments across files criteria has NOT been met.');
+                Logger.info(`Current run comment count: ${currentRunCommentCount}`);
+
+                if (currentRunCommentCount > inputs.dedupeAcrossFilesThreshold) {
+                    this.deduplicationCriteriaMet = true;
+                    Logger.info('Deduplicate comments across files activated.');
+                }
+            }
+
+            if (this.deduplicationCriteriaMet) {
+                commentsForExclusion = [...fileComments, ...runComments];
+            }
+        }
+
+        return commentsForExclusion.map((comment) => comment.content);
     }
 
     private static async processReviewResults(reviewResults: ReviewResult[], inputs: InputValues): Promise<void> {

@@ -156,6 +156,20 @@
             "label": "Minimum confidence score (Experimental)",
             "defaultValue": "9",
             "helpMarkDown": "Set the minimum confidence score (1-10) required for comments to appear. Only comments with a confidence score equal to or above this value will be shown."
+        },
+        {
+            "name": "dedupe_across_files",
+            "type": "boolean",
+            "label": "Enable deduplication of comments across files",
+            "defaultValue": false,
+            "helpMarkDown": "Set to true to prevent the same comment from appearing multiple times across different files in the code review. Use in combination with `dedupe_across_files_threshold`."
+        },
+        {
+            "name": "dedupe_across_files_threshold",
+            "type": "string",
+            "label": "Deduplication of comments across files threshold",
+            "defaultValue": "10",
+            "helpMarkDown": "Set the threshold of the total PR comments before deduplication is applied."
         }
     ],
     "execution": {
