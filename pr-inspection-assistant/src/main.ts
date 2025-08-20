@@ -16,7 +16,7 @@ export class Main {
     private static _chatGpt: ChatGPT;
     private static _repository: Repository;
     private static _pullRequest: PullRequest;
-    private static deduplicationCriteriaMet: boolean;
+    private static deduplicationCriteriaMet: boolean = false;
 
     public static async main(): Promise<void> {
         if (!this.isValidTrigger()) return;
@@ -39,7 +39,7 @@ export class Main {
         }
 
         const iterationFiles = await this._pullRequest.getIterationFiles(reviewRange);
-        Logger.info(`Found ${iterationFiles.length} changed files in this run:`, iterationFiles);
+        Logger.info(`Found ${iterationFiles.length} changed files in this run:`);
 
         const filesToReview = this.filterFiles(iterationFiles, inputs);
         Logger.info(`After filtering, ${filesToReview.length} files will be reviewed:`, filesToReview);
@@ -144,7 +144,7 @@ export class Main {
                 inputs
             );
 
-            Logger.info('File comments: ' + existingFileComments.length);
+            Logger.info('Existing file comments: ' + existingFileComments.length);
             Logger.info('Current run comments: ' + currentRunComments.length);
             Logger.info('Comments for exclusion: ' + commentsForExclusion.length, commentsForExclusion);
 

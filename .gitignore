@@ -244,7 +244,7 @@ ClientBin/
 *.pfx
 *.publishsettings
 orleans.codegen.cs
-.env.local
+.env.local*
 .taskkey
 
 # Sourcemap

@@ -64,7 +64,7 @@ export class ChatGPT {
                     ],
                     "status": 1,
                     "threadContext": {
-                        "filePath": "<string: path to file.  use filePath that was provided.>",
+                        "filePath": "<string: path to file. use filePath that was provided.>",
                         //only include leftFile properties for suggestions on unmodified lines
                         "leftFileStart": {
                             "line": <integer: line where the suggestion starts>,
