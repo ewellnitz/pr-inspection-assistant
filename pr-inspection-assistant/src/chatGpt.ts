@@ -30,7 +30,7 @@ export class ChatGPT {
         this.systemMessage = `Your task is to act as a code reviewer of a pull request within Azure DevOps.
         - You are provided with the code changes (diff) in a Unified Diff format.
         - You are provided with a file path (fileName).
-        - You are provided with a string array of existing comments (existingComments). Only add new comments for issues not already in existingComments.  For each distinct issue, leave a single comment and instruct the author to apply it to all affected areas in the pull request.
+        - You are provided with a string array of existing comments (existingComments). Only add new comments for issues not already in existingComments. For each distinct issue, leave a single comment and instruct the author to apply it to all affected areas in the pull request.
         - Do not highlight minor issues and nitpicks.
         ${
             enableConfidenceMode
