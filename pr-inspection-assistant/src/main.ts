@@ -6,10 +6,12 @@ import { PullRequest } from './pullRequest';
 import { filterFilesForReview } from './fileUtils';
 import { Logger } from './logger';
 import { InputValues } from './types/inputValues';
+import { InputManager } from './inputManager';
 import { Thread } from './types/thread';
 import { Comment } from './types/comment';
 import { Review } from './types/review';
 import { ReviewResult } from './types/reviewResult';
+import { CommentUtils } from './commentUtils';
 
 export class Main {
     private static _chatGpt: ChatGPT;
@@ -19,8 +21,7 @@ export class Main {
     public static async main(): Promise<void> {
         if (!this.isValidTrigger()) return;
 
-        const inputs = this.getInputValues();
-        this.logInputs(inputs);
+        const inputs = InputManager.inputs;
 
         const client = this.createOpenAIClient(inputs);
         this._chatGpt = this.createChatGptClient(client, inputs);
@@ -38,7 +39,7 @@ export class Main {
         }
 
         const iterationFiles = await this._pullRequest.getIterationFiles(reviewRange);
-        Logger.info(`Found ${iterationFiles.length} changed files in this run:`, iterationFiles);
+        Logger.info(`Found ${iterationFiles.length} changed files in this run:`);
 
         const filesToReview = this.filterFiles(iterationFiles, inputs);
         Logger.info(`After filtering, ${filesToReview.length} files will be reviewed:`, filesToReview);
@@ -65,38 +66,6 @@ export class Main {
             return false;
         }
         return true;
-    }
-
-    private static getInputValues(): InputValues {
-        return {
-            apiKey: tl.getInput('api_key', true)!,
-            azureApiEndpoint: tl.getInput('api_endpoint', false)!,
-            azureApiVersion: tl.getInput('api_version', false)!,
-            azureModelDeployment: tl.getInput('ai_model', false)!,
-            fileExtensions: tl.getInput('file_extensions', false),
-            fileExtensionExcludes: tl.getInput('file_extension_excludes', false),
-            filesToInclude: tl.getInput('file_includes', false),
-            filesToExclude: tl.getInput('file_excludes', false),
-            additionalPrompts: tl.getInput('additional_prompts', false)?.split(','),
-            bugs: tl.getBoolInput('bugs', false),
-            performance: tl.getBoolInput('performance', false),
-            bestPractices: tl.getBoolInput('best_practices', false),
-            modifiedLinesOnly: tl.getBoolInput('modified_lines_only', false),
-            enableCommentLineCorrection: tl.getBoolInput('comment_line_correction', false),
-            allowRequeue: tl.getBoolInput('allow_requeue', false),
-            confidenceMode: tl.getBoolInput('confidence_mode', false),
-            confidenceMinimum: parseInt(tl.getInput('confidence_minimum', false) ?? '9', 10),
-        };
-    }
-
-    private static logInputs(inputs: any): void {
-        for (const [key, value] of Object.entries(inputs)) {
-            if (key === 'apiKey') {
-                Logger.info(`${key}: ***`); // Mask sensitive fields
-            } else {
-                Logger.info(`${key}: ${value}`);
-            }
-        }
     }
 
     private static createOpenAIClient(inputs: any) {
@@ -160,24 +129,39 @@ export class Main {
 
         // Step 1: Collect review results
         const reviewResults: { fileName: string; codeReview: Review }[] = [];
-        for (let index = 0; index < filesToReview.length; index++) {
-            const fileName = filesToReview[index];
+
+        // Used for collecting all comments generated for the current review run
+        let currentRunComments: Comment[] = [];
+        let deduplicationCriteriaMet = false;
+
+        for (const [index, fileName] of filesToReview.entries()) {
             Logger.info(`Reviewing file ${index + 1}/${filesToReview.length}: ${fileName}`);
 
+            const existingFileComments = await this._pullRequest.getCommentsForFile(fileName);
+            const [commentsForExclusion, newDedupeMet] = CommentUtils.getCommentContentForExclusion(
+                existingFileComments,
+                currentRunComments,
+                inputs,
+                deduplicationCriteriaMet
+            );
+            deduplicationCriteriaMet = newDedupeMet;
+
+            Logger.info('Existing file comments: ' + existingFileComments.length);
+            Logger.info('Current run comments: ' + currentRunComments.length);
+            Logger.info('Comments for exclusion: ' + commentsForExclusion.length, commentsForExclusion);
+
             const diff = await this._repository.getDiff(fileName);
+            const codeReview = await this._chatGpt.performCodeReview(diff, fileName, commentsForExclusion);
 
-            // Get existing comments for the file
-            const existingComments = await this._pullRequest.getCommentsForFile(fileName);
-            Logger.info('Existing comments: ' + existingComments.length);
-
-            // Perform code review with existing comments
-            const codeReview = await this._chatGpt.performCodeReview(diff, fileName, existingComments);
+            // Flatten and collect new comments from this review
+            const newComments = codeReview.threads.flatMap((thread) => thread.comments);
+            currentRunComments.push(...newComments);
 
             reviewResults.push({ fileName, codeReview });
 
-            Logger.info(`Completed review of file ${fileName}`);
             const progressPercent = ((index + 1) / filesToReview.length) * 50;
             tl.setProgress(progressPercent, `Step 1: Performing Code Review (${index + 1}/${filesToReview.length})`);
+            Logger.info(`Completed review of file ${fileName}`);
         }
 
         return reviewResults;
@@ -257,7 +241,7 @@ export class Main {
         Logger.info(`Processing thread: ${thread.threadContext.filePath}`);
         if (inputs.confidenceMode) {
             const totalComments = thread.comments.length;
-            const { filteredOut, remaining } = this.filterCommentsByConfidence(
+            const { filteredOut, remaining } = CommentUtils.filterCommentsByConfidence(
                 thread.comments,
                 inputs.confidenceMinimum
             );
@@ -265,19 +249,6 @@ export class Main {
 
             this.logThreadComments(totalComments, filteredOut, remaining);
         }
-    }
-
-    private static filterCommentsByConfidence(comments: Comment[], confidenceMinimum: number) {
-        const filteredOut: Comment[] = [];
-        const remaining: Comment[] = [];
-        comments.forEach((comment) => {
-            if (comment.confidenceScore !== undefined && comment.confidenceScore < confidenceMinimum) {
-                filteredOut.push(comment);
-            } else {
-                remaining.push(comment);
-            }
-        });
-        return { filteredOut, remaining };
     }
 
     private static logThreadComments(total: number, filteredOut: Comment[], remaining: Comment[]): void {

@@ -4,6 +4,7 @@ import { OpenAI, AzureOpenAI } from 'openai';
 import parseGitDiff, { AddedLine, AnyChunk, AnyLineChange, DeletedLine, GitDiff, UnchangedLine } from 'parse-git-diff';
 import { CommentLineNumberAndOffsetFixer } from './commentLineNumberAndOffsetFixer';
 import { Review } from './types/review';
+import { Logger } from './logger';
 
 type Client = OpenAI | AzureOpenAI;
 
@@ -29,7 +30,7 @@ export class ChatGPT {
         this.systemMessage = `Your task is to act as a code reviewer of a pull request within Azure DevOps.
         - You are provided with the code changes (diff) in a Unified Diff format.
         - You are provided with a file path (fileName).
-        - You are provided with existing comments (existingComments) on the file, you must provide any additional code review comments that are not duplicates.
+        - You are provided with a string array of existing comments (existingComments). Only add new comments for issues not already in existingComments. For each distinct issue, leave a single comment and instruct the author to apply it to all affected areas in the pull request.
         - Do not highlight minor issues and nitpicks.
         ${
             enableConfidenceMode
@@ -63,7 +64,7 @@ export class ChatGPT {
                     ],
                     "status": 1,
                     "threadContext": {
-                        "filePath": "<string: path to file>",
+                        "filePath": "<string: path to file. use filePath that was provided.>",
                         //only include leftFile properties for suggestions on unmodified lines
                         "leftFileStart": {
                             "line": <integer: line where the suggestion starts>,
@@ -77,22 +78,14 @@ export class ChatGPT {
                         //only use rightFile properties if the line changed in the diff
                         "rightFileStart": {
                             "line": <integer: line where the suggestion starts>,
-                            "snippet": "<code snippet for suggestion>",
-                            "offset": <integer: character offset where the suggestion starts>
+                            "offset": <integer: character offset where the suggestion starts>,
+                            "snippet": "<code snippet for suggestion>"
                         },
                         "rightFileEnd": {
                             "line": <integer: line where the suggestion ends>,
                             "offset": <integer: character offset where the suggestion ends>
                         }
-                    },
-                    // Commenting out these for now as they're not working correctly and causes comments to be added to wrong files
-                    // "pullRequestThreadContext": {
-                    //     "changeTrackingId": <integer>, //Used to track a comment across iterations. Can be found by looking at the iteration changes list
-                    //     "iterationContext": {
-                    //         "firstComparingIteration": <integer>, //iteration of the file on the left side of the diff when the thread was created
-                    //         "secondComparingIteration": <integer> //iteration of the file on the right side of the diff when the thread was created
-                    //     }
-                    // }
+                    }
                 }
             ]
         }`;
@@ -131,8 +124,9 @@ export class ChatGPT {
         };
 
         let prompt = JSON.stringify(userPrompt, null, 4);
-        console.info(`Diff:\n${diff}`);
-        // console.info(`Prompt:\n${prompt}`);
+
+        Logger.info(`Diff:\n${diff}`);
+
         if (!this.doesMessageExceedTokenLimit(this.systemMessage + prompt, this.maxTokens)) {
             let openAi = await this._client.chat.completions.create({
                 messages: [
@@ -157,11 +151,11 @@ export class ChatGPT {
 
             if (response.length > 0) {
                 let content = response[0].message.content!;
-                console.info(`Comments:\n${content}`);
+                Logger.info(`Comments:\n${content}`);
                 try {
                     return JSON.parse(content);
                 } catch (error) {
-                    console.error(
+                    Logger.error(
                         `Failed to parse review response for file ${fileName}.  Returning empty review`,
                         error
                     );

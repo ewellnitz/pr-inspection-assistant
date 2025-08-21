@@ -1,7 +1,7 @@
 {
     "manifestVersion": 1,
     "id": "pria",
-    "version": "2.1.44",
+    "version": "2.1.45",
     "name": "PR Inspection Assistant",
     "publisher": "EricWellnitz",
     "public": true,

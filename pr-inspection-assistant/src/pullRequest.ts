@@ -7,6 +7,7 @@ import { PropertiesCollection } from './types/azureDevOps/propertiesCollection';
 import { GitPullRequestIterationChanges } from './types/azureDevOps/gitPullRequestIterationChanges';
 import { IterationRange } from './types/iterationRange';
 import { Thread } from './types/thread';
+import { Comment } from './types/comment';
 
 export class PullRequest {
     private _httpsAgent: Agent;
@@ -201,7 +202,7 @@ export class PullRequest {
         return comments;
     }
 
-    public async getCommentsForFile(fileName: string): Promise<string[]> {
+    public async getCommentsForFile(fileName: string): Promise<Comment[]> {
         if (!fileName.startsWith('/')) {
             fileName = `/${fileName}`;
         }
@@ -209,7 +210,7 @@ export class PullRequest {
         let buildServiceName = `${tl.getVariable('SYSTEM.TEAMPROJECT')} Build Service (${collectionName})`;
 
         const threads = await this.getThreads();
-        const comments: string[] = [];
+        const comments: Comment[] = [];
 
         Logger.info(`fileName: ${fileName}`);
         Logger.info(`collectionName: ${collectionName}`);
@@ -224,7 +225,7 @@ export class PullRequest {
                 //TODO: this filter is not working in all envrionments
                 //for (let comment of threadComments.value.filter((comment: any) => comment.author.displayName === buildServiceName) as any[]) {
                 for (let comment of threadComments.value as any[]) {
-                    comments.push(comment.content);
+                    comments.push(comment);
                 }
             }
         }
