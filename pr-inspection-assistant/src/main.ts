@@ -11,12 +11,12 @@ import { Thread } from './types/thread';
 import { Comment } from './types/comment';
 import { Review } from './types/review';
 import { ReviewResult } from './types/reviewResult';
+import { CommentUtils } from './commentUtils';
 
 export class Main {
     private static _chatGpt: ChatGPT;
     private static _repository: Repository;
     private static _pullRequest: PullRequest;
-    private static deduplicationCriteriaMet: boolean = false;
 
     public static async main(): Promise<void> {
         if (!this.isValidTrigger()) return;
@@ -132,22 +132,25 @@ export class Main {
 
         // Used for collecting all comments generated for the current review run
         let currentRunComments: Comment[] = [];
+        let deduplicationCriteriaMet = false;
 
         for (const [index, fileName] of filesToReview.entries()) {
             Logger.info(`Reviewing file ${index + 1}/${filesToReview.length}: ${fileName}`);
 
-            const diff = await this._repository.getDiff(fileName);
             const existingFileComments = await this._pullRequest.getCommentsForFile(fileName);
-            const commentsForExclusion = this.getCommentContentForExclusion(
+            const [commentsForExclusion, newDedupeMet] = CommentUtils.getCommentContentForExclusion(
                 existingFileComments,
                 currentRunComments,
-                inputs
+                inputs,
+                deduplicationCriteriaMet
             );
+            deduplicationCriteriaMet = newDedupeMet;
 
             Logger.info('Existing file comments: ' + existingFileComments.length);
             Logger.info('Current run comments: ' + currentRunComments.length);
             Logger.info('Comments for exclusion: ' + commentsForExclusion.length, commentsForExclusion);
 
+            const diff = await this._repository.getDiff(fileName);
             const codeReview = await this._chatGpt.performCodeReview(diff, fileName, commentsForExclusion);
 
             // Flatten and collect new comments from this review
@@ -162,35 +165,6 @@ export class Main {
         }
 
         return reviewResults;
-    }
-
-    // Helper for deduplication logic
-    private static getCommentContentForExclusion(
-        fileComments: Comment[],
-        runComments: Comment[],
-        inputs: InputValues
-    ): string[] {
-        let commentsForExclusion = [...fileComments];
-        if (inputs.dedupeAcrossFiles) {
-            if (!this.deduplicationCriteriaMet) {
-                const currentRunCommentCount = this.filterCommentsByConfidence(runComments, inputs.confidenceMinimum)
-                    .remaining.length;
-
-                Logger.info('Deduplicate comments across files criteria has NOT been met.');
-                Logger.info(`Current run comment count: ${currentRunCommentCount}`);
-
-                if (currentRunCommentCount > inputs.dedupeAcrossFilesThreshold) {
-                    this.deduplicationCriteriaMet = true;
-                    Logger.info('Deduplicate comments across files activated.');
-                }
-            }
-
-            if (this.deduplicationCriteriaMet) {
-                commentsForExclusion = [...fileComments, ...runComments];
-            }
-        }
-
-        return commentsForExclusion.map((comment) => comment.content);
     }
 
     private static async processReviewResults(reviewResults: ReviewResult[], inputs: InputValues): Promise<void> {
@@ -267,7 +241,7 @@ export class Main {
         Logger.info(`Processing thread: ${thread.threadContext.filePath}`);
         if (inputs.confidenceMode) {
             const totalComments = thread.comments.length;
-            const { filteredOut, remaining } = this.filterCommentsByConfidence(
+            const { filteredOut, remaining } = CommentUtils.filterCommentsByConfidence(
                 thread.comments,
                 inputs.confidenceMinimum
             );
@@ -275,19 +249,6 @@ export class Main {
 
             this.logThreadComments(totalComments, filteredOut, remaining);
         }
-    }
-
-    private static filterCommentsByConfidence(comments: Comment[], confidenceMinimum: number) {
-        const filteredOut: Comment[] = [];
-        const remaining: Comment[] = [];
-        comments.forEach((comment) => {
-            if (comment.confidenceScore !== undefined && comment.confidenceScore < confidenceMinimum) {
-                filteredOut.push(comment);
-            } else {
-                remaining.push(comment);
-            }
-        });
-        return { filteredOut, remaining };
     }
 
     private static logThreadComments(total: number, filteredOut: Comment[], remaining: Comment[]): void {

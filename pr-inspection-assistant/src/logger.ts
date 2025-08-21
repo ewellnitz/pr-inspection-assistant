@@ -10,26 +10,33 @@ export class Logger {
     }
 
     public static info(message: string, ...args: any[]): void {
-        console.info(message, ...args);
+        // Info logs are always shown in Azure DevOps
+        console.log(message, ...args);
         this.flushLogs();
     }
 
     public static error(message: string, ...args: any[]): void {
-        console.error(message, ...args);
+        // Azure DevOps error log command
+        console.log(`##vso[task.logissue type=error]${message}`, ...args);
         this.flushLogs();
     }
 
     public static warn(message: string, ...args: any[]): void {
-        console.warn(message, ...args);
+        // Azure DevOps warning log command
+        console.log(`##vso[task.logissue type=warning]${message}`, ...args);
         this.flushLogs();
     }
 
     public static debug(message: string, ...args: any[]): void {
-        console.debug(message, ...args);
-        this.flushLogs();
+        // Only log debug if system.debug is true in Azure DevOps
+        if (process.env['SYSTEM_DEBUG'] === 'true' || process.env['system.debug'] === 'true') {
+            console.log(`##vso[task.debug]${message}`, ...args);
+            this.flushLogs();
+        }
     }
 
     public static log(message: string, ...args: any[]): void {
+        // Generic log, always shown
         console.log(message, ...args);
         this.flushLogs();
     }
