@@ -47,7 +47,7 @@ export class ChatGPT {
         }
         ${additionalPrompts.length > 0 ? additionalPrompts.map((str) => `- ${str}`).join('\n') : ''}`;
 
-        this.systemMessage += `The response should be a single JSON object (without fenced codeblock) and it must use this sample JSON format:
+        this.systemMessage += `\nThe response should be a single JSON object (without fenced codeblock) and it must use this sample JSON format:
         {
             "threads": [
                 // Use multiple, separate thread objects for distinct comments at different locations. Line and offset references should be as specific as possible.
