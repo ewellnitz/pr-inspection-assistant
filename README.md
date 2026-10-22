@@ -43,6 +43,7 @@ Automate pull request (PR) reviews in Azure DevOps using the PR Inspection Assis
         -   'gpt-4o'
         -   'gpt-4'
         -   'gpt-3.5-turbo'
+    -   Any other chat completions model or deployment name can also be entered in `ai_model`. Names containing `o3` or `o4` use the `developer` message role. Models that are only available through the Responses API (for example the Codex models) are not supported.
 -   A designated [API version](https://learn.microsoft.com/en-us/azure/ai-services/openai/api-version-deprecation). Defaults to `'2024-10-21'`
 
 [Learn more about Azure AI Foundry](https://learn.microsoft.com/en-us/azure/ai-studio/azure-openai-in-ai-studio)

@@ -5,6 +5,7 @@ import parseGitDiff, { AddedLine, AnyChunk, AnyLineChange, DeletedLine, GitDiff,
 import { CommentLineNumberAndOffsetFixer } from './commentLineNumberAndOffsetFixer';
 import { Review } from './types/review';
 import { Logger } from './logger';
+import { getSystemMessageRole } from './modelCapabilities';
 
 type Client = OpenAI | AzureOpenAI;
 
@@ -106,16 +107,7 @@ export class ChatGPT {
         if (!fileName.startsWith('/')) {
             fileName = `/${fileName}`;
         }
-        let model = tl.getInput('ai_model', true) as
-            | (string & {})
-            | 'o4-mini'
-            | 'o3-mini'
-            | 'o1-mini'
-            | 'o1-preview'
-            | 'o1'
-            | 'gpt-4o'
-            | 'gpt-4'
-            | 'gpt-3.5-turbo';
+        let model = tl.getInput('ai_model', true) as string;
 
         let userPrompt = {
             fileName: fileName,
@@ -131,12 +123,7 @@ export class ChatGPT {
             let openAi = await this._client.chat.completions.create({
                 messages: [
                     {
-                        role:
-                            model.includes('o3') || model.includes('o4')
-                                ? 'developer'
-                                : model === 'o1-preview' || model === 'o1-mini'
-                                ? 'assistant'
-                                : 'system',
+                        role: getSystemMessageRole(model),
                         content: this.systemMessage,
                     },
                     {
