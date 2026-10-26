@@ -8,13 +8,17 @@ import { GitPullRequestIterationChanges } from './types/azureDevOps/gitPullReque
 import { IterationRange } from './types/iterationRange';
 import { Thread } from './types/thread';
 import { Comment } from './types/comment';
+import { resolveRepositoryName } from './repositoryName';
 
 export class PullRequest {
     private _httpsAgent: Agent;
 
     private _collectionUri: string = tl.getVariable('System.TeamFoundationCollectionUri')!;
     private _teamProjectId: string = tl.getVariable('System.TeamProjectId')!;
-    private _repositoryName: string = tl.getVariable('Build.Repository.Name')!;
+    private _repositoryName: string = resolveRepositoryName(
+        tl.getVariable('System.PullRequest.SourceRepositoryURI'),
+        tl.getVariable('Build.Repository.Name')
+    )!;
     private _pullRequestId: string = tl.getVariable('System.PullRequest.PullRequestId')!;
     private _pullRequest?: GitPullRequest;
     private _ado: AzureDevOps;
